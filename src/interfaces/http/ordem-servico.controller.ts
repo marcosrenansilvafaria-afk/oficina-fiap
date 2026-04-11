@@ -17,24 +17,47 @@ import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ord
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
 import { OrdemServico } from '../../domain/entities/ordem-servico';
 import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
+import { clienteRepo, veiculoRepo, ordemRepo } from '../../infraestructure/singletons';
+import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
+import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
 
 @Controller('os')
 export class OrdemServicoController {
-  private criarOS = new CriarOrdemServico();
-  private adicionarItem = new AdicionarItemOrdemServico();
-  private gerarOrcamento = new GerarOrcamento();
-  private aprovarOrcamento = new AprovarOrcamento();
-  private iniciarExecucao = new IniciarExecucao();
-  private iniciarDiagnostico = new IniciarDiagnostico();
-  private finalizarOrdem = new FinalizarOrdemServico();
-  private entregarVeiculo = new EntregarVeiculo();
+  private criarOS = new CriarOrdemServico(ordemRepo, clienteRepo, veiculoRepo);
+  private adicionarItem = new AdicionarItemOrdemServico(ordemRepo);
+  private gerarOrcamento = new GerarOrcamento(ordemRepo);
+  private aprovarOrcamento = new AprovarOrcamento(ordemRepo);
+  private iniciarExecucao = new IniciarExecucao(ordemRepo);
+  private iniciarDiagnostico = new IniciarDiagnostico(ordemRepo);
+  private finalizarOrdem = new FinalizarOrdemServico(ordemRepo);
+  private entregarVeiculo = new EntregarVeiculo(ordemRepo);
 
-  // usando repositório in-memory diretamente (simplicidade)
-  private repo = new InMemoryOrdemRepository();
+  // using shared singleton repo
+  private repo = ordemRepo;
 
   @Post()
-  criar() {
-    const os = this.criarOS.execute();
+  criar(@Body() body: any) {
+    // accept optional clienteId and veiculoId in body
+    return this.criarWithBody(body);
+  }
+
+  // extracted to allow body validation
+  private criarWithBody(body: any) {
+    const clienteRepo = new InMemoryClienteRepository();
+    const veiculoRepo = new InMemoryVeiculoRepository();
+
+    const clienteId = body?.clienteId;
+    const veiculoId = body?.veiculoId;
+
+    if (clienteId && !clienteRepo.getById(clienteId)) {
+      throw new BadRequestException('clienteId inválido');
+    }
+
+    if (veiculoId && !veiculoRepo.getById(veiculoId)) {
+      throw new BadRequestException('veiculoId inválido');
+    }
+
+    const os = this.criarOS.execute({ clienteId, veiculoId });
     this.repo.save(os);
     return os;
   }
@@ -145,5 +168,10 @@ export class OrdemServicoController {
     const os = this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
     return os;
+  }
+
+  @Get()
+  listar() {
+    return this.repo.all();
   }
 }

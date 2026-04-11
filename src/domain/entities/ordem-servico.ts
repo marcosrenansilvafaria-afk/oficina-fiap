@@ -14,7 +14,11 @@ export class OrdemServico {
   private itens: ItemOrdemServico[] = [];
   private valorTotal: number = 0;
 
-  constructor(public readonly id: string) {
+  constructor(
+    public readonly id: string,
+    public readonly clienteId?: string,
+    public readonly veiculoId?: string,
+  ) {
     this.status = 'RECEBIDA';
   }
 
