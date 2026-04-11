@@ -1,167 +1,276 @@
-# 📌 Contexto do Projeto — Sistema de Oficina Mecânica
+# 📌 Contexto do Projeto — Sistema de Oficina Mecânica (MVP)
+
+---
 
 ## 🎯 Objetivo
 
-Este projeto tem como objetivo implementar um sistema backend para gestão de Ordens de Serviço (OS) em uma oficina mecânica, aplicando conceitos de:
+Desenvolver um sistema backend (MVP) para gestão de Ordens de Serviço (OS) em uma oficina mecânica, aplicando:
 
 - Domain-Driven Design (DDD)
 - Clean Architecture
-- Boas práticas de desenvolvimento backend
+- Boas práticas de desenvolvimento
+
+O sistema visa resolver problemas como:
+- Desorganização do fluxo de atendimento
+- Falta de rastreabilidade de serviços
+- Dificuldade de acompanhamento de status
+- Controle ineficiente de peças e serviços
 
 ---
 
-## 🧠 Domínio
+# 🧠 Estratégia de Implementação (MVP)
 
-O domínio principal é o gerenciamento de Ordens de Serviço.
+Como se trata de um MVP, todos os requisitos foram considerados, porém implementados com diferentes níveis de profundidade, priorizando:
 
-Uma Ordem de Serviço representa todo o ciclo de atendimento de um veículo dentro da oficina, desde a criação até a entrega.
-
----
-
-## 🧱 Arquitetura
-
-O sistema segue os princípios de Clean Architecture:
-
-### Camadas:
-
-- **Domain**
-  - Entidades e regras de negócio
-  - Independente de frameworks
-
-- **Application**
-  - Casos de uso
-  - Orquestra o domínio
-
-- **Interfaces**
-  - Controllers HTTP (NestJS)
-  - Entrada do sistema
-
-- **Infrastructure**
-  - Persistência e integrações externas
+- Núcleo do domínio (Ordem de Serviço)
+- Fluxos críticos do sistema
+- Clareza arquitetural
 
 ---
 
-## ⚠️ Regras Arquiteturais
-
-- O domínio NÃO depende de nenhuma outra camada
-- Casos de uso NÃO possuem regra de negócio
-- Controllers NÃO possuem lógica de negócio
-- Toda regra deve estar no domínio
+# 🧩 REQUISITOS FUNCIONAIS
 
 ---
 
-## 🧩 Modelo de Domínio
+## 🔴 RF1 — Gestão de Ordem de Serviço (ALTO IMPACTO)
 
-### Aggregate Root
+### Funcionalidades:
 
-- OrdemServico
+- Criação de OS
+- Associação com cliente e veículo
+- Inclusão de serviços e peças
+- Geração automática de orçamento
+- Aprovação de orçamento
+- Execução e finalização
+- Entrega do veículo
+- Consulta de OS
 
-### Entidades
+### Status da OS:
 
-#### OrdemServico
-- id
-- status:
-  - RECEBIDA
-  - EM_DIAGNOSTICO
-  - AGUARDANDO_APROVACAO
-  - APROVADA
-  - EM_ANDAMENTO
-  - FINALIZADA
-  - ENTREGUE
-- itens
-- valorTotal
+- RECEBIDA  
+- EM_DIAGNOSTICO  
+- AGUARDANDO_APROVACAO  
+- APROVADA  
+- EM_EXECUCAO  
+- FINALIZADA  
+- ENTREGUE  
 
-#### ItemOrdemServico
-- tipo (SERVICO | PECA)
-- descricao
-- preco
-- quantidade
+### Implementação:
 
----
-
-## 📜 Regras de Negócio
-
-- Não é possível adicionar itens após aprovação
-- O orçamento deve ser gerado antes da aprovação
-- Não é possível iniciar execução sem aprovação
-- Não é possível finalizar sem estar em execução
-- Não é possível entregar sem estar finalizada
+✔ COMPLETA e com regras de domínio  
+✔ Controle de estados garantido no domínio  
 
 ---
 
-## 🔁 Fluxo do Sistema
+## 🟠 RF2 — Gestão de Cliente e Veículo (MÉDIO IMPACTO)
 
-1. Criar Ordem de Serviço
-2. Adicionar itens (serviços/peças)
-3. Gerar orçamento
-4. Aprovar orçamento
-5. Iniciar execução
-6. Finalizar serviço
-7. Entregar veículo
+### Funcionalidades:
 
----
+- Cadastro de cliente (CPF/CNPJ)
+- Cadastro de veículo (placa, modelo, marca, ano)
+- Associação com OS
 
-## ⚙️ Casos de Uso
+### Implementação:
 
-- CriarOrdemServico
-- AdicionarItemOrdemServico
-- GerarOrcamento
-- AprovarOrcamento
-- IniciarExecucao
-- FinalizarOrdemServico
-- EntregarVeiculo
+✔ CRUD básico (Create + Get)  
+✔ Validação simplificada  
+
+💡 Justificativa:
+Foco no vínculo com OS, não na complexidade do cadastro
 
 ---
 
-## 🌐 Endpoints
+## 🟠 RF3 — Gestão de Serviços e Peças (MÉDIO IMPACTO)
 
-- POST /os
-- POST /os/:id/item
-- POST /os/:id/orcamento
-- POST /os/:id/aprovar
-- POST /os/:id/executar
-- POST /os/:id/finalizar
-- POST /os/:id/entregar
-- GET  /os/:id
+### Funcionalidades:
 
----
+- Cadastro de serviços
+- Cadastro de peças
+- Associação com OS
+- Controle básico de estoque
 
-## 🗄️ Persistência
+### Implementação:
 
-- Atualmente em memória (objeto em runtime)
-- Não há banco de dados implementado
-- Decisão tomada para simplificar o escopo do projeto
+✔ CRUD simplificado  
+✔ Estoque representado por campo numérico  
+
+💡 Justificativa:
+Controle simplificado suficiente para MVP
 
 ---
 
-## 🧠 Decisões Arquiteturais
+## 🟡 RF4 — Listagem e Consulta (MÉDIO/BAIXO IMPACTO)
 
-### Uso de DDD
-Separação clara entre domínio e infraestrutura para garantir escalabilidade e manutenibilidade.
+### Funcionalidades:
 
-### Uso de Clean Architecture
-Organização em camadas para desacoplamento e testabilidade.
+- Listar OS
+- Detalhar OS
 
-### Uso de NestJS
-Framework escolhido pela organização modular e suporte a boas práticas.
+### Implementação:
 
-### Uso de armazenamento em memória
-Adotado para simplificar o desenvolvimento e focar na modelagem de domínio.
+✔ Endpoint básico  
 
 ---
 
-## 🎯 Objetivo da Implementação
+## 🟡 RF5 — Monitoramento de tempo (BAIXO IMPACTO)
 
-- Demonstrar domínio de arquitetura de software
-- Aplicar conceitos de DDD na prática
-- Entregar um sistema funcional com API REST
-- Priorizar clareza e organização ao invés de complexidade
+### Funcionalidade:
+
+- Tempo médio de execução
+
+### Implementação:
+
+⚠️ Simplificada / Não priorizada  
+
+💡 Justificativa:
+Baixo impacto no fluxo principal
 
 ---
 
-## 🚫 Fora do Escopo
+# 🔐 REQUISITOS NÃO FUNCIONAIS
 
-- Autenticação
-- Persistência avançada
-- Testes automatizados completos
-- Segurança avançada
+---
+
+## 🔴 RNF1 — Arquitetura (ALTO IMPACTO)
+
+- Monólito em camadas
+- Separação de responsabilidades
+- DDD aplicado no domínio
+
+✔ Implementado completamente
+
+---
+
+## 🔴 RNF2 — API REST (ALTO IMPACTO)
+
+- Endpoints RESTful
+- Organização clara
+
+✔ Implementado
+
+---
+
+## 🟠 RNF3 — Documentação (ALTO IMPACTO)
+
+- README completo
+- Descrição de arquitetura
+- Endpoints documentados
+
+✔ Implementado
+
+---
+
+## 🟡 RNF4 — Validação de dados (MÉDIO IMPACTO)
+
+- CPF/CNPJ
+- Placa
+
+✔ Implementação simplificada  
+
+💡 Justificativa:
+Validação básica suficiente para MVP
+
+---
+
+## 🟡 RNF5 — Testes automatizados (MÉDIO IMPACTO)
+
+- Testes de domínio
+- Testes de fluxo principal
+
+✔ Implementação parcial  
+
+💡 Justificativa:
+Foco nos fluxos críticos ao invés de cobertura total
+
+---
+
+## 🔵 RNF6 — Segurança (JWT) (BAIXO IMPACTO)
+
+- Autenticação em endpoints administrativos
+
+⚠️ Implementação simplificada ou parcial  
+
+💡 Justificativa:
+Não é crítico para validação do domínio no MVP
+
+---
+
+## 🔵 RNF7 — Banco de dados (MÉDIO IMPACTO)
+
+- Persistência dos dados
+
+✔ Implementação in-memory  
+
+💡 Justificativa:
+Foco na modelagem de domínio e simplicidade
+
+---
+
+## 🔵 RNF8 — Docker (BAIXO IMPACTO)
+
+- Containerização da aplicação
+
+⚠️ Implementação básica ou não priorizada  
+
+---
+
+## 🔵 RNF9 — Swagger (BAIXO IMPACTO)
+
+- Documentação da API
+
+✔ Implementação opcional  
+
+---
+
+# 🧱 Arquitetura
+
+## Camadas:
+
+- Domain → regras e entidades
+- Application → casos de uso
+- Interface → controllers HTTP
+- Infrastructure → persistência
+
+---
+
+# 🧠 Decisões Arquiteturais
+
+### DDD
+Aplicado para garantir centralização das regras no domínio.
+
+### Clean Architecture
+Separação clara de responsabilidades.
+
+### Persistência em memória
+Adotada para reduzir complexidade e focar no domínio.
+
+### Escopo controlado
+Priorização do fluxo de OS como núcleo do sistema.
+
+---
+
+# 🔁 Fluxo Principal
+
+1. Criar OS (cliente + veículo)
+2. Iniciar diagnóstico
+3. Adicionar itens
+4. Gerar orçamento
+5. Aprovar
+6. Executar
+7. Finalizar
+8. Entregar
+
+---
+
+# 🎯 Conclusão
+
+O sistema foi desenvolvido como MVP, contemplando todos os requisitos obrigatórios, porém com níveis diferentes de profundidade, priorizando:
+
+- Domínio central
+- Clareza arquitetural
+- Funcionalidade ponta a ponta
+
+Essa abordagem garante:
+- Entrega funcional
+- Escalabilidade futura
+- Qualidade de modelagem

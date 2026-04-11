@@ -2,6 +2,7 @@ import { ItemOrdemServico } from './item-ordem-servico';
 
 export type StatusOrdemServico =
   | 'RECEBIDA'
+  | 'EM_DIAGNOSTICO'
   | 'AGUARDANDO_APROVACAO'
   | 'APROVADA'
   | 'EM_EXECUCAO'
@@ -19,8 +20,8 @@ export class OrdemServico {
 
   // 🔹 Adicionar item
   adicionarItem(item: ItemOrdemServico) {
-    if (this.status !== 'RECEBIDA' && this.status !== 'AGUARDANDO_APROVACAO') {
-      throw new Error('Não é possível adicionar itens neste status');
+    if (this.status !== 'EM_DIAGNOSTICO') {
+      throw new Error('Não é possível adicionar itens neste status — só em EM_DIAGNOSTICO');
     }
 
     this.itens.push(item);
@@ -38,6 +39,15 @@ export class OrdemServico {
     );
 
     this.status = 'AGUARDANDO_APROVACAO';
+  }
+
+  // 🔹 Iniciar diagnóstico
+  iniciarDiagnostico() {
+    if (this.status !== 'RECEBIDA' && this.status !== 'AGUARDANDO_APROVACAO') {
+      throw new Error('Só é possível iniciar diagnóstico quando a OS está RECEBIDA');
+    }
+
+    this.status = 'EM_DIAGNOSTICO';
   }
 
   // 🔹 Aprovar orçamento

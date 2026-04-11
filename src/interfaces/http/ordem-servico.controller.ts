@@ -12,6 +12,7 @@ import { AdicionarItemOrdemServico } from '../../application/use-cases/adicionar
 import { GerarOrcamento } from '../../application/use-cases/gerar-orcamento';
 import { AprovarOrcamento } from '../../application/use-cases/aprovar-orcamento';
 import { IniciarExecucao } from '../../application/use-cases/iniciar-execucao';
+import { IniciarDiagnostico } from '../../application/use-cases/iniciar-diagnostico';
 import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ordem-servico';
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
 import { OrdemServico } from '../../domain/entities/ordem-servico';
@@ -24,6 +25,7 @@ export class OrdemServicoController {
   private gerarOrcamento = new GerarOrcamento();
   private aprovarOrcamento = new AprovarOrcamento();
   private iniciarExecucao = new IniciarExecucao();
+  private iniciarDiagnostico = new IniciarDiagnostico();
   private finalizarOrdem = new FinalizarOrdemServico();
   private entregarVeiculo = new EntregarVeiculo();
 
@@ -61,6 +63,20 @@ export class OrdemServicoController {
 
     try {
       this.gerarOrcamento.execute(os);
+      this.repo.save(os);
+      return os;
+    } catch (err: any) {
+      throw new BadRequestException(err.message);
+    }
+  }
+
+  @Post(':id/diagnostico')
+  diagnostico(@Param('id') id: string) {
+    const os = this.repo.getById(id);
+    if (!os) throw new NotFoundException('OS não encontrada');
+
+    try {
+      this.iniciarDiagnostico.execute(os);
       this.repo.save(os);
       return os;
     } catch (err: any) {
