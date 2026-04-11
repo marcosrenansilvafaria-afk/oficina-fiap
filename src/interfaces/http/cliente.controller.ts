@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, Param, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Controller, 
+  Post,
+  Body,
+  Get,
+  Param,
+  NotFoundException,
+  BadRequestException
+} from '@nestjs/common';
 import { CriarCliente } from '../../application/use-cases/criar-cliente';
 import { BuscarCliente } from '../../application/use-cases/buscar-cliente';
 import { clienteRepo } from '../../infraestructure/singletons';
@@ -7,6 +15,7 @@ import { clienteRepo } from '../../infraestructure/singletons';
 export class ClienteController {
   private criarCliente = new CriarCliente(clienteRepo);
   private buscarCliente = new BuscarCliente();
+  private repo = clienteRepo;
 
   @Post()
   criar(@Body() body: any) {
@@ -15,7 +24,10 @@ export class ClienteController {
     }
 
     try {
-      const cliente = this.criarCliente.execute({ nome: body.nome, documento: body.documento });
+      const cliente = this.criarCliente.execute({
+        nome: body.nome,
+        documento: body.documento
+      });
       return cliente;
     } catch (err: any) {
       throw new BadRequestException(err.message);

@@ -43,9 +43,6 @@ export class OrdemServicoController {
 
   // extracted to allow body validation
   private criarWithBody(body: any) {
-    const clienteRepo = new InMemoryClienteRepository();
-    const veiculoRepo = new InMemoryVeiculoRepository();
-
     const clienteId = body?.clienteId;
     const veiculoId = body?.veiculoId;
 
@@ -58,7 +55,6 @@ export class OrdemServicoController {
     }
 
     const os = this.criarOS.execute({ clienteId, veiculoId });
-    this.repo.save(os);
     return os;
   }
 
@@ -71,9 +67,8 @@ export class OrdemServicoController {
     }
 
     try {
-      this.adicionarItem.execute(os, body);
-      this.repo.save(os);
-      return os;
+      const result = this.adicionarItem.execute(id, body);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
@@ -85,9 +80,8 @@ export class OrdemServicoController {
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      this.gerarOrcamento.execute(os);
-      this.repo.save(os);
-      return os;
+      const result = this.gerarOrcamento.execute(id);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
@@ -99,9 +93,8 @@ export class OrdemServicoController {
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      this.iniciarDiagnostico.execute(os);
-      this.repo.save(os);
-      return os;
+      const result = this.iniciarDiagnostico.execute(id);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
@@ -113,9 +106,8 @@ export class OrdemServicoController {
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      this.aprovarOrcamento.execute(os);
-      this.repo.save(os);
-      return os;
+      const result = this.aprovarOrcamento.execute(id);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
@@ -127,9 +119,8 @@ export class OrdemServicoController {
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      this.iniciarExecucao.execute(os);
-      this.repo.save(os);
-      return os;
+      const result = this.iniciarExecucao.execute(id);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
@@ -141,9 +132,8 @@ export class OrdemServicoController {
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      this.finalizarOrdem.execute(os);
-      this.repo.save(os);
-      return os;
+      const result = this.finalizarOrdem.execute(id);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
@@ -155,9 +145,8 @@ export class OrdemServicoController {
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      this.entregarVeiculo.execute(os);
-      this.repo.save(os);
-      return os;
+      const result = this.entregarVeiculo.execute(id);
+      return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }

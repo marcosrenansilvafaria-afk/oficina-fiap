@@ -7,6 +7,7 @@ import { veiculoRepo } from '../../infraestructure/singletons';
 export class VeiculoController {
   private criarVeiculo = new CriarVeiculo(veiculoRepo);
   private buscarVeiculo = new BuscarVeiculo();
+  private repo = veiculoRepo;
 
   @Post()
   criar(@Body() body: any) {
