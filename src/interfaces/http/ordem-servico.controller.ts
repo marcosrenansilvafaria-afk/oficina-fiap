@@ -17,14 +17,14 @@ import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ord
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
 import { OrdemServico } from '../../domain/entities/ordem-servico';
 import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
-import { clienteRepo, veiculoRepo, ordemRepo } from '../../infraestructure/singletons';
+import { clienteRepo, veiculoRepo, ordemRepo, pecaRepo, servicoRepo } from '../../infraestructure/singletons';
 import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
 import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
 
 @Controller('os')
 export class OrdemServicoController {
   private criarOS = new CriarOrdemServico(ordemRepo, clienteRepo, veiculoRepo);
-  private adicionarItem = new AdicionarItemOrdemServico(ordemRepo);
+  private adicionarItem = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
   private gerarOrcamento = new GerarOrcamento(ordemRepo);
   private aprovarOrcamento = new AprovarOrcamento(ordemRepo);
   private iniciarExecucao = new IniciarExecucao(ordemRepo);
@@ -34,6 +34,8 @@ export class OrdemServicoController {
 
   // using shared singleton repo
   private repo = ordemRepo;
+  private pecaRepo = pecaRepo;
+  private servicoRepo = servicoRepo;
 
   @Post()
   criar(@Body() body: any) {
