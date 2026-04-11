@@ -1,8 +1,11 @@
 import { OrdemServico } from '../../domain/entities/ordem-servico';
 
-export class EntregarVeiculo {
-  execute(os: OrdemServico) {
-    os.entregar();
+export class BuscarOrdemServico {
+  execute(os?: OrdemServico) {
+    if (!os) {
+      throw new Error('OS não encontrada');
+    }
+
     return os;
   }
 }
