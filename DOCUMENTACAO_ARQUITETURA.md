@@ -171,12 +171,47 @@ src/
 
 ## 4.4 Decisões Arquiteturais (ADR)
 
-- ADR-001: Adotar DDD para modelagem do domínio — Justificativa: complexidade do domínio e regras de negócio.
-- ADR-002: Clean Architecture para separar dependências — Justificativa: testabilidade e independência de frameworks.
-- ADR-003: Persistência inicial em in-memory — Justificativa: MVP rápido, testes e prototipagem. Plano de migração: TODO.
-- ADR-004: Framework NestJS — Justificativa: produtividade, estrutura modular e compatibilidade com patterns.
+Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). Abaixo há ADRs já tomadas e um modelo para novos registros.
 
-TODO: preencher templates ADR (motivo, alternativas, decisão, data, impactos).
+### ADRs registradas
+
+- **ADR-001 — Adotar DDD para modelagem do domínio**
+  - Data: TODO: inserir data
+  - Decisão: Utilizar Domain-Driven Design para modelagem do núcleo de domínio.
+  - Motivo: Complexidade das regras de negócio relacionadas a Ordens de Serviço, versionamento de orçamentos e transições de estado.
+  - Alternativas consideradas: abordagem anêmica (DTOs sem domínio), modelagem simples sem aggregates.
+  - Impactos: código mais orientado a domínio, testes focados em invariantes, curva de aprendizado para contributors.
+
+- **ADR-002 — Adotar Clean Architecture**
+  - Data: TODO
+  - Decisão: Separar camadas (Domain, Application, Interfaces, Infrastructure) seguindo princípios da Clean Architecture.
+  - Motivo: Isolar regras de negócio de frameworks e permitir portabilidade/ testabilidade.
+  - Impactos: convenções de código, camadas e dependências explicitadas.
+
+- **ADR-003 — Persistência inicial em repositórios In-Memory**
+  - Data: TODO
+  - Decisão: Usar repositórios em memória para MVP e testes.
+  - Motivo: Agilidade na prototipagem e execução de testes sem dependências externas.
+  - Plano de migração: documentar modelo de dados e criar adaptadores para RDBMS (ex.: Postgres) ou NoSQL mais à frente.
+
+- **ADR-004 — Framework: NestJS**
+  - Data: TODO
+  - Decisão: Utilizar NestJS como framework backend.
+  - Motivo: Estrutura modular, suporte a decorators, integração com `@nestjs/swagger`, boa experiência de desenvolvimento.
+
+### Modelo de ADR (usar para novos registros)
+
+```
+Title: ADR-XXX - Título da decisão
+Date: YYYY-MM-DD
+Status: proposed | accepted | deprecated
+Context: Breve descrição do contexto e por que a decisão é necessária
+Decision: O que foi decidido
+Consequences: Impactos técnicos e organizacionais
+Alternatives: Alternativas consideradas e por que foram rejeitadas
+```
+
+Salvar ADRs em `docs/adr/ADR-XXX.md`.
 
 ---
 
@@ -235,11 +270,60 @@ TODO: preencher matrix de testes (lista de casos prioritários) e comandos para 
 
 ## 8.1 Dockerfile
 
-TODO: inserir Dockerfile recomendado (exemplo básico) e justificar camadas.
+Exemplo de `Dockerfile` para construir a API (Node + NestJS). Ajustar `NODE_ENV`, versão do Node e scripts conforme `package.json`.
+
+```dockerfile
+# Stage 1 — build
+FROM node:18-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+
+# Stage 2 — runtime
+FROM node:18-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/dist ./dist
+COPY package*.json ./
+RUN npm ci --only=production
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
+```
+
+Notas:
+- Em desenvolvimento local pode-se usar `npm run start:dev` sem Docker.
+- Para usar variáveis de ambiente sensíveis, usar secrets/CSVs no CI ou `docker secrets` em produção.
 
 ## 8.2 docker-compose
 
-TODO: arquivo `docker-compose.yml` exemplar com API + DB (opcional).
+Exemplo `docker-compose.yml` com a API e um Postgres opcional (ajustar se optar por DB):
+
+```yaml
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/oficina
+    depends_on:
+      - db
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=oficina
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
+```
 
 ## 8.3 Execução local
 
@@ -251,7 +335,22 @@ npm run build
 npm run start:dev
 ```
 
-TODO: ajustar conforme `package.json` do projeto.
+Para executar com Docker Compose:
+
+```bash
+docker compose up --build
+# ou (Windows cmd):
+# docker-compose up --build
+```
+
+Para rodar apenas a API em container:
+
+```bash
+docker build -t oficina-api .
+docker run -p 3000:3000 --env NODE_ENV=production oficina-api
+```
+
+TODO: substituir `DATABASE_URL` e secrets por valores do ambiente/CI.
 
 ---
 

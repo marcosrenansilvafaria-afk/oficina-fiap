@@ -274,3 +274,132 @@ Essa abordagem garante:
 - Entrega funcional
 - Escalabilidade futura
 - Qualidade de modelagem
+
+# 1. Introdução
+
+## 1.1 Contexto do problema
+
+A oficina mecânica enfrentava problemas operacionais devido ao uso de processos manuais e planilhas, resultando em:
+
+- Falhas no controle de serviços
+- Dificuldade no acompanhamento do status das ordens
+- Perda de histórico de clientes e veículos
+- Ineficiência no fluxo de aprovação de orçamentos
+
+O sistema proposto busca centralizar e organizar esses processos, garantindo rastreabilidade e controle.
+
+---
+
+## 1.2 Objetivo do sistema
+
+Desenvolver um backend (MVP) para gestão de Ordens de Serviço (OS), permitindo:
+
+- Controle do ciclo completo de atendimento
+- Organização dos dados de clientes e veículos
+- Gestão de serviços e peças
+- Acompanhamento do status da OS via API
+
+---
+
+## 1.3 Escopo do MVP
+
+Inclui:
+
+- Ordens de Serviço (OS)
+- Clientes
+- Veículos
+- Serviços
+- Peças
+
+Fora do escopo (MVP):
+
+- Autenticação completa (JWT avançado)
+- Persistência em banco de dados
+- Monitoramento avançado (tempo médio)
+- Controle avançado de estoque
+
+---
+
+# 2. Requisitos
+
+## 2.1 Requisitos Funcionais
+
+### 2.1.1 Fluxo de OS
+
+- RF-OS-01: Criar Ordem de Serviço  
+  - Entrada: clienteId, veiculoId  
+  - Validação: cliente e veículo devem existir  
+
+- RF-OS-02: Adicionar itens  
+  - Permitido apenas em: RECEBIDA, EM_DIAGNOSTICO  
+  - Tipos: SERVICO | PECA  
+
+- RF-OS-03: Gerar orçamento  
+  - Soma automática dos itens  
+
+- RF-OS-04: Aprovar orçamento  
+  - Altera status para APROVADA  
+
+- RF-OS-05: Iniciar execução  
+  - Apenas se status = APROVADA  
+
+- RF-OS-06: Finalizar OS  
+  - Apenas se status = EM_EXECUCAO  
+
+- RF-OS-07: Entregar veículo  
+  - Apenas se status = FINALIZADA  
+
+- RF-OS-08: Consultar OS  
+  - GET por id  
+  - Listagem geral  
+
+---
+
+### 2.1.2 Gestão administrativa
+
+- RF-ADM-01: Cliente  
+  - Criar cliente  
+  - Buscar cliente  
+
+- RF-ADM-02: Veículo  
+  - Criar veículo  
+  - Buscar veículo  
+
+- RF-ADM-03: Peças  
+  - Cadastro simples  
+  - Controle básico de estoque  
+
+- RF-ADM-04: Serviços  
+  - Cadastro simples  
+
+- RF-ADM-05: Relatórios  
+  - Não implementado (fora do escopo do MVP)
+
+---
+
+## 2.2 Requisitos Não Funcionais
+
+### 2.2.1 Arquitetura
+
+- DDD aplicado
+- Clean Architecture
+- Monólito em camadas
+
+📌 Inserir diagrama de camadas (HLD) aqui  
+👉 (draw.io ou imagem)
+
+---
+
+### 2.2.2 Segurança
+
+- Validação básica de dados (documento, campos obrigatórios)
+- JWT não implementado (justificado como simplificação do MVP)
+
+---
+
+### 2.2.3 Performance
+
+- Uso de armazenamento in-memory
+- Baixo tempo de resposta esperado
+
+---
