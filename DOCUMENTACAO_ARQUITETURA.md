@@ -8,11 +8,23 @@
 
 ## 1.1 Contexto do problema
 
-TODO: preencher — resumo do problema que o sistema resolve.
+A oficina mecânica enfrentava problemas operacionais devido ao uso de processos manuais e planilhas, resultando em:
+
+- Falhas no controle de serviços
+- Dificuldade no acompanhamento do status das ordens
+- Perda de histórico de clientes e veículos
+- Ineficiência no fluxo de aprovação de orçamentos
+
+O sistema proposto busca centralizar e organizar esses processos, garantindo rastreabilidade e controle.
 
 ## 1.2 Objetivo do sistema
 
-TODO: preencher — objetivo principal do backend (MVP) para gestão de oficina.
+Desenvolver um backend (MVP) para gestão de Ordens de Serviço (OS), permitindo:
+
+- Controle do ciclo completo de atendimento
+- Organização dos dados de clientes e veículos
+- Gestão de serviços e peças
+- Acompanhamento do status da OS via API
 
 ## 1.3 Escopo do MVP
 
@@ -22,7 +34,12 @@ TODO: preencher — objetivo principal do backend (MVP) para gestão de oficina.
 - Serviços
 - Peças
 
-TODO: detalhar limites do MVP (o que está fora do escopo).
+Fora do escopo (MVP):
+
+- Autenticação completa (JWT avançado)
+- Persistência em banco de dados (produção)
+- Monitoramento avançado (tempo médio e KPIs complexos)
+- Controle avançado de estoque
 
 ---
 
@@ -34,51 +51,78 @@ Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.1.1 Fluxo de OS
 
-- RF-OS-01: Criar Ordem de Serviço — TODO: detalhar payload e validações. (Criar OS)
-- RF-OS-02: Adicionar itens (peça/serviço) à OS — TODO: regras de preço e estoque.
-- RF-OS-03: Gerar orçamento (snapshot de preços) — TODO.
-- RF-OS-04: Aprovar orçamento — TODO.
-- RF-OS-05: Iniciar execução (somente se status = APROVADA) — TODO.
-- RF-OS-06: Finalizar OS (regras: todos os itens concluídos) — TODO.
-- RF-OS-07: Entregar veículo — TODO.
-- RF-OS-08: Buscar/consultar OS por id/cliente/status — TODO.
+- **RF-OS-01: Gestão de Ordem de Serviço (ALTO IMPACTO)**
+  - Funcionalidades: Criação de OS, associação com cliente e veículo, inclusão de serviços e peças, geração automática de orçamento, aprovação de orçamento, execução, finalização, entrega do veículo e consulta de OS.
+  - Status da OS: RECEBIDA, EM_DIAGNOSTICO, AGUARDANDO_APROVACAO, APROVADA, EM_EXECUCAO, FINALIZADA, ENTREGUE.
+  - Implementação no repositório: núcleo do domínio implementado com controle de estados.
+
+- **RF-OS-02: Criar Ordem de Serviço**
+  - Entrada: `clienteId`, `veiculoId`.
+  - Validação: cliente e veículo devem existir.
+
+- **RF-OS-03: Adicionar itens**
+  - Permitido apenas em: RECEBIDA, EM_DIAGNOSTICO.
+  - Tipos: `SERVICO` | `PECA`.
+
+- **RF-OS-04: Gerar orçamento**
+  - Soma automática dos itens e snapshot de preços.
+
+- **RF-OS-05: Aprovar orçamento**
+  - Altera status para `APROVADA`.
+
+- **RF-OS-06: Iniciar execução**
+  - Apenas se status = `APROVADA`.
+
+- **RF-OS-07: Finalizar OS**
+  - Apenas se status = `EM_EXECUCAO`.
+
+- **RF-OS-08: Entregar veículo**
+  - Apenas se status = `FINALIZADA`.
+
+- **RF-OS-09: Consultar OS**
+  - `GET` por id e listagem geral.
 
 ### 2.1.2 Gestão administrativa
 
-- RF-ADM-01: CRUD de Clientes — TODO.
-- RF-ADM-02: CRUD de Veículos — TODO.
-- RF-ADM-03: CRUD de Peças (estoque, preço) — TODO.
-- RF-ADM-04: CRUD de Serviços — TODO.
-- RF-ADM-05: Relatórios básicos (ex.: OS por status, faturamento) — TODO.
+- **RF-ADM-01: Cliente**
+  - Criar cliente (CPF/CNPJ), buscar cliente.
+
+- **RF-ADM-02: Veículo**
+  - Criar veículo (placa, modelo, marca, ano), buscar veículo.
+
+- **RF-ADM-03: Peças**
+  - Cadastro simples, controle básico de estoque (campo numérico).
+
+- **RF-ADM-04: Serviços**
+  - Cadastro simples.
+
+- **RF-ADM-05: Relatórios**
+  - Não implementado no MVP (fora do escopo).
 
 ## 2.2 Requisitos Não Funcionais
 
 ### 2.2.1 Arquitetura
 
-- Arquitetura: DDD + Clean Architecture (monolito modular).
-- Camadas: Domain, Application (use-cases), Interfaces (HTTP), Infrastructure (repositories).
-- Observação: repositórios em memória usados no MVP; documentar estratégia de migração para DB.
+- Monólito em camadas com DDD aplicado no domínio e Clean Architecture para separar responsabilidades.
+- Camadas: Domain, Application (use-cases), Interfaces (HTTP/controllers), Infrastructure (repositórios).
+- Implementação atual: persistência em memória (in-memory) para MVP; migrar para banco quando necessário.
 
 ### 2.2.2 Segurança
 
-- Autenticação/Autorização: Recomenda-se JWT com roles (admin, mecanico, cliente).
-- Validação de input: usar DTOs e validação server-side (ex.: class-validator no NestJS).
-- TODO: política de senhas, armazenamento seguro de segredos, escopo de tokens.
+- Validação básica de dados (documento, campos obrigatórios) está implementada.
+- JWT: não implementado no MVP (decisão consciente para focar no domínio). Recomenda-se implementação futura para endpoints administrativos.
 
-### 2.2.3 Performance (básico)
+### 2.2.3 Performance
 
-- Metas: respostas de API < 200–500ms em operações CRUD simples (meta indicativa).
-- Limitação esperada: in-memory rápido; migrar para DB com índices para consultas.
+- Uso de armazenamento in-memory garante baixo tempo de resposta esperado para o MVP.
 
 ### 2.2.4 Testes
 
-- Estratégia: testes unitários para domínio e use-cases; testes de integração para controllers; E2E para fluxos críticos (workflow OS).
-- Cobertura: objetivo 80% (se não alcançar, justificar em seção 7).
+- Testes automatizados parciais: testes de domínio e testes de fluxo principal (E2E) parcialmente implementados.
 
 ### 2.2.5 Deploy
 
-- Build reproducível em Docker; usar `docker-compose` para orquestração local.
-- CI: GitHub Actions recomendado para lint, build, test e scan de segurança.
+- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproducível.
 
 ---
 
@@ -86,41 +130,234 @@ Obs: separar por fluxo de OS e gestão administrativa.
 
 ## 3.1 Linguagem Ubíqua
 
-- TODO: listar termos essenciais e definições (Ex.: Ordem de Serviço, Orçamento, Item, Peça, Serviço, Cliente, Veículo, Status: RECEBIDA, EM_DIAGNOSTICO, AGUARDANDO_APROVACAO, APROVADA, EM_ANDAMENTO, FINALIZADA).
+O sistema utiliza uma linguagem ubíqua alinhada ao domínio de oficinas mecânicas, garantindo consistência entre código, documentação e regras de negócio.
+
+### Termos principais
+
+- Ordem de Serviço (OS): representa o ciclo completo de atendimento de um veículo
+- Cliente: solicitante do serviço
+- Veículo: objeto do atendimento
+- Item da OS: componente da ordem (serviço ou peça)
+- Serviço: atividade executada (ex: troca de óleo)
+- Peça: insumo utilizado
+
+### Status da Ordem de Serviço
+
+- RECEBIDA
+- EM_DIAGNOSTICO
+- AGUARDANDO_APROVACAO
+- APROVADA
+- EM_EXECUCAO
+- FINALIZADA
+- ENTREGUE
+
+### Ações do domínio
+
+- Diagnosticar  
+- Gerar orçamento
+- Aprovar orçamento
+- Executar serviço
+- Finalizar OS
+- Entregar veículo
 
 ## 3.2 Event Storming
 
-- Descrever fluxos principais: criação OS → adicionar itens → gerar orçamento → aprovar → executar → finalizar → entregar.
-- TODO: link para board Miro / imagem.
+- Fluxo Principal (extraído do contexto do projeto):
+  1. Criar OS (cliente + veículo)
+  2. Iniciar diagnóstico
+  3. Adicionar itens
+  4. Gerar orçamento
+  5. Aprovar orçamento
+  6. Executar
+  7. Finalizar
+  8. Entregar
 
-Inserir diagrama Event Storming aqui: TODO: Inserir diagrama (Miro / imagem)
+TODO: link para board Miro / imagem (inserir diagrama Event Storming em `docs/`).
 
 ## 3.3 Entidades e Agregados
 
-- Agregado principal: `OrdemServico` (Aggregate Root)
-  - Responsabilidades: manter itens, calcular totais, aplicar regras de negócio sobre status e transições.
+O domínio foi modelado utilizando o conceito de Aggregate do Domain-Driven Design, garantindo consistência e controle das regras de negócio.
 
-- Entidades / Value Objects detectadas no código (preenchidas automaticamente):
-  - `OrdemServico` — arquivo referência: src/domain/entities/ordem-servico.ts (TODO: revisar e copiar atributos relevantes)
-  - `ItemOrdemServico` — src/domain/entities/item-ordem-servico.ts
-  - `Cliente` — src/domain/entities/cliente.ts
-  - `Peca` — src/domain/entities/peca.ts
-  - `Servico` — src/domain/entities/servico.ts
-  - `Veiculo` — src/domain/entities/veiculo.ts
+### Aggregate Root
 
-> TODO: para cada entidade preencher atributos, invariantes e exemplos de uso.
+#### OrdemServico
+
+A entidade OrdemServico é o Aggregate Root do sistema, sendo responsável por:
+
+- Controlar o ciclo de vida da OS
+- Garantir as regras de negócio
+- Gerenciar os itens associados
+- Controlar o status da operação
+
+Apenas o Aggregate Root pode ser manipulado diretamente por outros componentes do sistema.
+
+📌 Inserir diagrama do Aggregate aqui (OS + itens)
+
+---
+
+### Entidades internas ao Aggregate
+
+#### ItemOrdemServico
+
+Representa um item dentro da Ordem de Serviço.
+
+Pode ser de dois tipos:
+- SERVICO (mão de obra)
+- PECA (insumo)
+
+Atributos:
+- tipo
+- descricao
+- preco
+- quantidade
+
+Observação:
+Os itens não existem fora do contexto da OrdemServico.
+
+---
+
+### Entidades externas ao Aggregate
+
+#### Cliente (Bounded Context: Cadastro)
+
+Representa o solicitante do serviço.
+
+Atributos:
+- id
+- nome
+- documento (CPF/CNPJ)
+
+Observação:
+É referenciado pela OrdemServico, mas não pertence ao aggregate.
+
+---
+
+#### Veiculo (Bounded Context: Cadastro)
+
+Representa o veículo atendido.
+
+Atributos:
+- id
+- placa
+- marca
+- modelo
+- ano
+
+Observação:
+Assim como Cliente, é uma entidade externa referenciada.
+
+---
+
+#### Serviço (Bounded Context: Catálogo)
+
+Define os tipos de serviços disponíveis.
+
+---
+
+#### Peça (Bounded Context: Catálogo)
+
+Define os insumos disponíveis para utilização.
+
+---
+
+### Consistência do Aggregate
+
+Todas as regras de negócio são garantidas dentro do Aggregate OrdemServico, incluindo:
+
+- Controle de status
+- Inclusão de itens
+- Transições de estado
+- Validação de fluxo
+
+Isso garante que o sistema permaneça consistente mesmo em cenários concorrentes.
 
 ## 3.4 Regras de Negócio
 
-- RN-01: Não pode alterar itens após aprovação do orçamento (regra central).
-- RN-02: Revisão gera novo orçamento (versionamento) — TODO: detalhar.
-- RN-03: Execução só inicia se status = APROVADA.
-- RN-04: Finalização somente quando todos os itens marcados como concluídos.
-- RN-05: Ajuste de estoque ao adicionar/consumir peças — sincronização eventual.
-
-TODO: mapear outras regras encontradas no código e nos use-cases.
+As regras de negócio foram centralizadas no Aggregate OrdemServico, garantindo consistência e previsibilidade no fluxo do sistema.
 
 ---
+
+### Regras de criação
+
+- Uma Ordem de Serviço só pode ser criada se:
+  - Cliente existir
+  - Veículo existir
+
+---
+
+### Regras de itens
+
+- Itens só podem ser adicionados nos status:
+  - RECEBIDA
+  - EM_DIAGNOSTICO
+
+- Ao adicionar um item:
+  - O valor total da OS deve ser recalculado
+
+---
+
+### Regras de orçamento
+
+- O orçamento deve ser gerado antes da aprovação
+- Ao gerar orçamento:
+  - Status muda para AGUARDANDO_APROVACAO
+
+---
+
+### Regras de aprovação
+
+- Apenas ordens em AGUARDANDO_APROVACAO podem ser aprovadas
+- Após aprovação:
+  - Status muda para APROVADA
+
+---
+
+### Regras de execução
+
+- Execução só pode iniciar se:
+  - Status = APROVADA
+
+- Ao iniciar execução:
+  - Status muda para EM_EXECUCAO
+
+---
+
+### Regras de finalização
+
+- A OS só pode ser finalizada se:
+  - Status = EM_EXECUCAO
+
+- Após finalização:
+  - Status muda para FINALIZADA
+
+---
+
+### Regras de entrega
+
+- A OS só pode ser entregue se:
+  - Status = FINALIZADA
+
+- Após entrega:
+  - Status muda para ENTREGUE
+
+---
+
+### Regras de ajuste (fluxo alternativo)
+
+- É possível retornar a OS para diagnóstico quando:
+  - Status = AGUARDANDO_APROVACAO
+
+- Esse fluxo permite:
+  - Inclusão de novos itens
+  - Regeração de orçamento
+
+---
+
+### Regras de integridade
+
+- Não é permitido pular estados
+- Todas as transições devem seguir o fluxo definido
+- Todas as validações são realizadas dentro do Aggregate
 
 # 4. Arquitetura de Software
 
@@ -423,14 +660,20 @@ Referências locais já presentes no repositório:
 
 ---
 
+
 # 13. Considerações Finais
 
-- Decisões de MVP: TODO — listar o que foi decidido para manter o escopo enxuto.
-- Limitações conhecidas: TODO — por exemplo, persistência em memória, ausência de auth pronta, cobertura parcial de testes.
-- Próximos passos:
-  1. Completar documentação das APIs e contratos (OpenAPI).
-  2. Implementar persistência em DB e migração de dados.
-  3. Melhorias de segurança (JWT, HTTPS, secrets management).
+- **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
+- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), JWT não implementado no MVP, cobertura de testes parcial e monitoramento simplificado.
+- **Próximos passos:**
+  1. Completar documentação das APIs e contratos (OpenAPI/Swagger).
+  2. Implementar persistência em DB e plano de migração.
+  3. Implementar autenticação/autorizações (JWT) para endpoints administrativos.
+  4. Expandir testes unitários e integração para atingir meta de cobertura.
+
+---
+
+Conforme descrito em `docs/contexto.md`, o sistema foi desenvolvido como MVP contemplando requisitos obrigatórios com níveis diferentes de profundidade, priorizando o domínio central e a entrega funcional ponta a ponta.
 
 ---
 
