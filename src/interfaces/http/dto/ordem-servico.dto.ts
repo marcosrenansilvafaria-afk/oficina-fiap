@@ -23,13 +23,15 @@ export class AdicionarItemOrdemServicoDto {
   tipo!: 'PECA' | 'SERVICO';
 
   @ApiPropertyOptional({
-    description: 'Descricao manual do item (usado quando nao informar pecaId/servicoId)',
+    description:
+      'Descricao manual do item (usado quando nao informar pecaId/servicoId)',
     example: 'Troca de oleo',
   })
   descricao?: string;
 
   @ApiPropertyOptional({
-    description: 'Preco unitario do item (usado quando nao informar pecaId/servicoId)',
+    description:
+      'Preco unitario do item (usado quando nao informar pecaId/servicoId)',
     example: 120,
   })
   preco?: number;

@@ -7,7 +7,14 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiBody, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CriarOrdemServico } from '../../application/use-cases/criar-ordem-servico';
 import { AdicionarItemOrdemServico } from '../../application/use-cases/adicionar-item-ordem-servico';
 import { GerarOrcamento } from '../../application/use-cases/gerar-orcamento';
@@ -18,16 +25,29 @@ import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ord
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
 import { OrdemServico } from '../../domain/entities/ordem-servico';
 import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
-import { clienteRepo, veiculoRepo, ordemRepo, pecaRepo, servicoRepo } from '../../infraestructure/singletons';
+import {
+  clienteRepo,
+  veiculoRepo,
+  ordemRepo,
+  pecaRepo,
+  servicoRepo,
+} from '../../infraestructure/singletons';
 import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
 import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
-import { AdicionarItemOrdemServicoDto, CriarOrdemServicoDto } from './dto/ordem-servico.dto';
+import {
+  AdicionarItemOrdemServicoDto,
+  CriarOrdemServicoDto,
+} from './dto/ordem-servico.dto';
 
 @Controller('os')
 @ApiTags('ordens-servico')
 export class OrdemServicoController {
   private criarOS = new CriarOrdemServico(ordemRepo, clienteRepo, veiculoRepo);
-  private adicionarItem = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
+  private adicionarItem = new AdicionarItemOrdemServico(
+    ordemRepo,
+    pecaRepo,
+    servicoRepo,
+  );
   private gerarOrcamento = new GerarOrcamento(ordemRepo);
   private aprovarOrcamento = new AprovarOrcamento(ordemRepo);
   private iniciarExecucao = new IniciarExecucao(ordemRepo);
@@ -72,7 +92,10 @@ export class OrdemServicoController {
   @ApiOkResponse({ description: 'Item adicionado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
   @Post(':id/item')
-  adicionar(@Param('id') id: string, @Body() body: AdicionarItemOrdemServicoDto) {
+  adicionar(
+    @Param('id') id: string,
+    @Body() body: AdicionarItemOrdemServicoDto,
+  ) {
     const os = this.repo.getById(id);
 
     if (!os) {

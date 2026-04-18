@@ -1,5 +1,21 @@
-import { Controller, Post, Body, Get, Param, Patch, BadRequestException, NotFoundException } from '@nestjs/common';
-import { ApiBody, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CriarPeca } from '../../application/use-cases/criar-peca';
 import { BuscarPeca } from '../../application/use-cases/buscar-peca';
 import { ListarPeca } from '../../application/use-cases/listar-peca';
@@ -21,7 +37,11 @@ export class PecaController {
   @Post()
   criar(@Body() body: CriarPecaDto) {
     try {
-      const p = this.criarPeca.execute({ nome: body.nome, preco: body.preco, estoque: body.estoque });
+      const p = this.criarPeca.execute({
+        nome: body.nome,
+        preco: body.preco,
+        estoque: body.estoque,
+      });
       return p;
     } catch (err: any) {
       throw new BadRequestException(err.message);
@@ -53,7 +73,8 @@ export class PecaController {
   @Patch(':id/estoque')
   ajustar(@Param('id') id: string, @Body() body: AjustarEstoquePecaDto) {
     const delta = Number(body?.delta);
-    if (isNaN(delta)) throw new BadRequestException('delta numérico obrigatório');
+    if (isNaN(delta))
+      throw new BadRequestException('delta numérico obrigatório');
     try {
       return this.ajustarEstoque.execute(id, delta);
     } catch (err: any) {

@@ -8,7 +8,8 @@ export class CriarClienteDto {
   nome!: string;
 
   @ApiProperty({
-    description: 'Documento do cliente (CPF/CNPJ; regra atual valida 11 digitos)',
+    description:
+      'Documento do cliente (CPF/CNPJ; regra atual valida 11 digitos)',
     example: '12345678901',
   })
   documento!: string;

@@ -749,16 +749,25 @@ Estratégia adotada:
 - E2E tests: fluxos HTTP críticos.
 - Integração: parcialmente coberta pelos testes E2E devido à persistência in-memory.
 
+Justificativa do método:
+
+- Pirâmide de testes aplicada para reduzir custo de manutenção e aumentar velocidade de feedback.
+- Regras críticas de negócio ficam protegidas por testes unitários de domínio (entidades) e de aplicação (use-cases).
+- Fluxos HTTP ponta a ponta permanecem validados por E2E, garantindo contrato funcional mínimo.
+
 Artefatos atuais:
 
 - `test/app.e2e-spec.ts`
 - `test/workflow.e2e-spec.ts`
+- `src/domain/entities/*.spec.ts` (ciclo da OS, itens, estoque e entidades de cadastro)
+- `src/application/use-cases/*.spec.ts` (fluxo crítico da OS, busca, cadastro e listagem)
 
 Comandos oficiais (package.json):
 
 - `npm run test`
 - `npm run test:watch`
 - `npm run test:cov`
+- `npm run test:cov:critical`
 - `npm run test:e2e`
 
 Ferramentas:
@@ -774,6 +783,20 @@ Meta e quality gate sugeridos para evolução:
   - lint
   - test
   - test:e2e
+
+Automação implementada no repositório:
+
+- Workflow de CI em `.github/workflows/ci.yml` executando build, lint, unit, e2e e cobertura crítica.
+- Threshold obrigatório de cobertura crítica definido em `jest.critical.config.js` com mínimo de `80%` para statements, branches, functions e lines.
+
+Resultado atual (escopo crítico medido com `test:cov:critical`):
+
+- Statements: `97.9%`
+- Branches: `92.78%`
+- Functions: `100%`
+- Lines: `99.53%`
+
+Conclusão: requisito de cobertura mínima `>= 80%` para domínios críticos atendido.
 
 Matriz mínima de cenários críticos:
 
@@ -831,27 +854,73 @@ Observações:
 
 # 9. Qualidade de Software
 
-- Boas práticas aplicadas:
-  - Separação de camadas (DDD + Clean)
-  - Nomeclatura consistente (Linguagem Ubíqua)
-  - Repositórios com interface explícita
-  - Uso de DTOs e validação
+Objetivo de qualidade:
 
-- Ferramentas de qualidade recomendadas: ESLint, Prettier, SonarCloud/Scanner.
+- Reduzir regressão funcional no fluxo de OS.
+- Garantir consistência arquitetural entre domínio, casos de uso e interfaces HTTP.
+- Aplicar validação contínua em build, lint e testes automatizados.
 
-TODO: anexar políticas de lint e formato de commits (Conventional Commits).
+Padrões e políticas adotadas:
+
+- Linting: ESLint (`npm run lint`).
+- Formatação: Prettier (`npm run format`).
+- Testes: Jest + Supertest (`npm run test`, `npm run test:e2e`).
+- Contrato de API: Swagger/OpenAPI publicado em `/docs` e `/docs-json`.
+
+Quality gate recomendado para CI:
+
+1. `npm run build`
+2. `npm run lint`
+3. `npm run test`
+4. `npm run test:e2e`
+5. `npm audit --omit=dev`
+
+Política de versionamento e commits:
+
+- Recomenda-se Conventional Commits para rastreabilidade de mudança arquitetural e funcional.
+- Recomenda-se branch strategy baseada em feature branch + PR com revisão obrigatória.
+
+Critérios mínimos para aceite de PR:
+
+- Build sem erros.
+- Sem erro de lint.
+- Testes locais (unit + e2e) verdes.
+- Mudanças de contrato refletidas no Swagger.
 
 ---
 
 # 10. Análise de Vulnerabilidades
 
-- Espaço para resultados de scan: TODO
+Baseline atual (executado em 2026-04-18):
 
-- Processo recomendado:
-  - `npm audit` + `npm audit fix` como passo inicial
-  - SCA em CI (dependabot, Snyk ou similares)
+- `npm audit --json`: 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica) considerando todo o grafo.
+- `npm audit --omit=dev`: 3 vulnerabilidades altas em dependências de produção:
+  - `@nestjs/core`
+  - `path-to-regexp`
+  - `@nestjs/platform-express`
 
-TODO: adicionar resultados e justificativas após execução do scan.
+Processo operacional de tratamento:
+
+1. Executar auditoria em toda alteração relevante:
+   - `npm audit --omit=dev`
+2. Aplicar correções automáticas seguras:
+   - `npm audit fix`
+3. Reexecutar build e testes após correção:
+   - `npm run build`
+   - `npm run test`
+   - `npm run test:e2e`
+4. Registrar risco residual no PR quando a atualização não puder ser aplicada imediatamente.
+
+Política de severidade sugerida:
+
+- Crítica/Alta em dependência de produção: bloquear release até mitigação ou exceção formal documentada.
+- Moderada: corrigir no próximo ciclo planejado.
+- Baixa: tratar por backlog técnico com janela definida.
+
+Evolução recomendada:
+
+- Habilitar SCA contínuo (Dependabot/Snyk/GitHub Advisory) no pipeline.
+- Definir SLA de correção por severidade para governança de segurança.
 
 ---
 
@@ -866,10 +935,10 @@ TODO: adicionar resultados e justificativas após execução do scan.
 ## 11.2 Scripts úteis
 
 - `npm run test` — rodar testes unitários
+- `npm run test:cov` — cobertura global (inclui toda a base)
+- `npm run test:cov:critical` — cobertura do escopo crítico (domínio + use-cases)
 - `npm run test:e2e` — rodar testes E2E (se configurado)
 - `npm run lint` — rodar lint
-
-TODO: confirmar comandos no `package.json`.
 
 ---
 
@@ -904,7 +973,7 @@ Referências locais já presentes no repositório:
 - **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
 - **Limitações conhecidas:** persistência em memória (não persistente entre execuções), JWT não implementado no MVP, cobertura de testes parcial e monitoramento simplificado.
 - **Próximos passos:**
-  1. Completar documentação das APIs e contratos (OpenAPI/Swagger).
+  1. Evoluir documentação de contrato com DTOs de resposta e padronização de erros no OpenAPI/Swagger.
   2. Implementar persistência em DB e plano de migração.
   3. Implementar autenticação/autorizações (JWT) para endpoints administrativos.
   4. Expandir testes unitários e integração para atingir meta de cobertura.

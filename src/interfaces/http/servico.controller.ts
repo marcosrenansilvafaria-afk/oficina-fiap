@@ -1,5 +1,20 @@
-import { Controller, Post, Body, Get, Param, BadRequestException, NotFoundException } from '@nestjs/common';
-import { ApiBody, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CriarServico } from '../../application/use-cases/criar-servico';
 import { BuscarServico } from '../../application/use-cases/buscar-servico';
 import { ListarServico } from '../../application/use-cases/listar-servico';
@@ -19,7 +34,10 @@ export class ServicoController {
   @Post()
   criar(@Body() body: CriarServicoDto) {
     try {
-      const s = this.criarServico.execute({ nome: body.nome, preco: body.preco });
+      const s = this.criarServico.execute({
+        nome: body.nome,
+        preco: body.preco,
+      });
       return s;
     } catch (err: any) {
       throw new BadRequestException(err.message);

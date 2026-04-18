@@ -25,7 +25,9 @@ export class OrdemServico {
   // 🔹 Adicionar item
   adicionarItem(item: ItemOrdemServico) {
     if (this.status !== 'EM_DIAGNOSTICO') {
-      throw new Error('Não é possível adicionar itens neste status — só em EM_DIAGNOSTICO');
+      throw new Error(
+        'Não é possível adicionar itens neste status — só em EM_DIAGNOSTICO',
+      );
     }
 
     this.itens.push(item);
@@ -37,10 +39,7 @@ export class OrdemServico {
       throw new Error('Não é possível gerar orçamento sem itens');
     }
 
-    this.valorTotal = this.itens.reduce(
-      (acc, item) => acc + item.total(),
-      0,
-    );
+    this.valorTotal = this.itens.reduce((acc, item) => acc + item.total(), 0);
 
     this.status = 'AGUARDANDO_APROVACAO';
   }
@@ -48,7 +47,9 @@ export class OrdemServico {
   // 🔹 Iniciar diagnóstico
   iniciarDiagnostico() {
     if (this.status !== 'RECEBIDA' && this.status !== 'AGUARDANDO_APROVACAO') {
-      throw new Error('Só é possível iniciar diagnóstico quando a OS está RECEBIDA');
+      throw new Error(
+        'Só é possível iniciar diagnóstico quando a OS está RECEBIDA',
+      );
     }
 
     this.status = 'EM_DIAGNOSTICO';

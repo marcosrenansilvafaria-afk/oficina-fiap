@@ -9,3 +9,11 @@ export const veiculoRepo = new InMemoryVeiculoRepository();
 export const ordemRepo = new InMemoryOrdemRepository();
 export const servicoRepo = new InMemoryServicoRepository();
 export const pecaRepo = new InMemoryPecaRepository();
+
+export function resetInMemoryRepositories() {
+  clienteRepo.clear();
+  veiculoRepo.clear();
+  ordemRepo.clear();
+  servicoRepo.clear();
+  pecaRepo.clear();
+}

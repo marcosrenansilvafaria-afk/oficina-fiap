@@ -16,7 +16,9 @@ export class CriarCliente {
     }
 
     // business rule: no duplicate documento
-    const exists = this.repo.all().some((c) => String(c.documento).replace(/\D/g, '') === documento);
+    const exists = this.repo
+      .all()
+      .some((c) => String(c.documento).replace(/\D/g, '') === documento);
     if (exists) {
       throw new Error('Cliente com este documento já cadastrado');
     }

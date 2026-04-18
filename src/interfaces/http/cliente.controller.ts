@@ -1,13 +1,20 @@
 import {
-  Controller, 
+  Controller,
   Post,
   Body,
   Get,
   Param,
   NotFoundException,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiBody, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CriarCliente } from '../../application/use-cases/criar-cliente';
 import { BuscarCliente } from '../../application/use-cases/buscar-cliente';
 import { clienteRepo } from '../../infraestructure/singletons';
@@ -32,7 +39,7 @@ export class ClienteController {
     try {
       const cliente = this.criarCliente.execute({
         nome: body.nome,
-        documento: body.documento
+        documento: body.documento,
       });
       return cliente;
     } catch (err: any) {

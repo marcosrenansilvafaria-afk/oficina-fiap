@@ -1,5 +1,20 @@
-import { Controller, Post, Body, Get, Param, NotFoundException, BadRequestException } from '@nestjs/common';
-import { ApiBody, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CriarVeiculo } from '../../application/use-cases/criar-veiculo';
 import { BuscarVeiculo } from '../../application/use-cases/buscar-veiculo';
 import { veiculoRepo } from '../../infraestructure/singletons';
@@ -18,7 +33,9 @@ export class VeiculoController {
   @Post()
   criar(@Body() body: CriarVeiculoDto) {
     if (!body || !body.placa || !body.modelo || !body.marca || !body.ano) {
-      throw new BadRequestException('placa, modelo, marca e ano são obrigatórios');
+      throw new BadRequestException(
+        'placa, modelo, marca e ano são obrigatórios',
+      );
     }
 
     try {

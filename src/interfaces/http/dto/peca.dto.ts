@@ -13,7 +13,8 @@ export class CriarPecaDto {
 
 export class AjustarEstoquePecaDto {
   @ApiProperty({
-    description: 'Variacao do estoque (positivo para entrada, negativo para saida)',
+    description:
+      'Variacao do estoque (positivo para entrada, negativo para saida)',
     example: -1,
   })
   delta!: number;

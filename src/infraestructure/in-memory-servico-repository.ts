@@ -14,4 +14,8 @@ export class InMemoryServicoRepository {
   all(): Servico[] {
     return Array.from(this.store.values());
   }
+
+  clear() {
+    this.store.clear();
+  }
 }
