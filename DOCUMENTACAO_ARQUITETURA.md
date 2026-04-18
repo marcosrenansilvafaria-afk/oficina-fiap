@@ -26,6 +26,12 @@ Desenvolver um backend (MVP) para gestão de Ordens de Serviço (OS), permitindo
 - Gestão de serviços e peças
 - Acompanhamento do status da OS via API
 
+Critérios de sucesso do MVP:
+
+- Garantir rastreabilidade de ponta a ponta do fluxo da OS (criação até entrega)
+- Manter consistência das transições de status por regra de domínio
+- Permitir consulta operacional de OS e cadastros com resposta estável via API
+
 ## 1.3 Escopo do MVP
 
 - Ordens de Serviço (OS)
@@ -109,8 +115,10 @@ Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.2.2 Segurança
 
-- Validação básica de dados (documento, campos obrigatórios) está implementada.
-- JWT: não implementado no MVP (decisão consciente para focar no domínio). Recomenda-se implementação futura para endpoints administrativos.
+- Validação de entrada: campos obrigatórios, formato de documento (CPF/CNPJ), placa e tipos de item da OS.
+- Validação de regra: transições de estado e pré-condições da OS são validadas no domínio.
+- Autenticação/autorização: JWT e RBAC não implementados no MVP por decisão de escopo; adoção prevista para fase posterior.
+- Tratamento de erro: padronização de erros de validação e regra de negócio deve ser aplicada na camada HTTP (plano de evolução).
 
 ### 2.2.3 Performance
 
@@ -171,12 +179,22 @@ O sistema utiliza uma linguagem ubíqua alinhada ao domínio de oficinas mecâni
   6. Executar
   7. Finalizar
   8. Entregar
+  
+![Texto alternativo](docs\image\eventStorming2.png)  
 
-TODO: link para board Miro / imagem (inserir diagrama Event Storming em `docs/`).
+[Drawio](https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing)
 
 ## 3.3 Entidades e Agregados
 
 O domínio foi modelado utilizando o conceito de Aggregate do Domain-Driven Design, garantindo consistência e controle das regras de negócio.
+
+### 3.3.1 Bounded Contexts (visão atual)
+
+- Contexto Ordem de Serviço (núcleo): concentra regras transacionais e ciclo de vida da OS.
+- Contexto Cadastro: cliente e veículo como entidades referenciadas por identificador.
+- Contexto Catálogo: serviços e peças usados como base para composição dos itens da OS.
+
+Observação arquitetural: no estado atual do MVP, os contextos convivem no mesmo monólito modular. A separação é lógica (domínio e responsabilidades) e não física (serviços independentes).
 
 ### Aggregate Root
 
@@ -191,7 +209,7 @@ A entidade OrdemServico é o Aggregate Root do sistema, sendo responsável por:
 
 Apenas o Aggregate Root pode ser manipulado diretamente por outros componentes do sistema.
 
-📌 Inserir diagrama do Aggregate aqui (OS + itens)
+![DDD Oficina](docs\image\Oficina-DDD.png)  
 
 ---
 
@@ -366,27 +384,47 @@ As regras de negócio foram centralizadas no Aggregate OrdemServico, garantindo 
 - Arquitetura adotada: DDD + Clean Architecture em aplicação NestJS.
 - Descrição: monolito modular com separação clara entre domínio, casos de uso, interfaces e infra.
 
-Inserir diagrama HLD aqui: TODO: Inserir C4/CAMADA/arquitetura (PNG/SVG/Link).
+Diagramas de arquitetura (C4) atualmente documentados:
+
+- C1 (Contexto): `docs/image/C1_Oficina_Context.png`
+- C2 (Containers): `docs/image/C2_Oficina_Container.png`
+- C3 (Componentes): `docs/image/C3_Oficina_Component.png`
+
+Observação: o nível C4 (código) será elaborado em etapa posterior por ser mais orientado a desenvolvedores e depender da estabilização final dos módulos internos.
 
 ## 4.2 Modelo C4
 
 ### 4.2.1 Contexto
 
 - Sistema: Backend da Oficina (MVP) — expõe API para front-end/consumidores.
-- Usuários: clientes, atendentes, mecânicos, administradores.
+- Usuários: clientes, atendentes e mecânicos.
+
+![C1 - Contexto](docs/image/C1_Oficina_Context.png)
 
 ### 4.2.2 Containers
 
 - API (NestJS) — aplica casos de uso; endpoints REST.
-- Database (opcional) — futuro RDBMS/NoSQL.
+- Repositórios In-Memory — persistência temporária utilizada no MVP e durante a fase inicial de testes.
+- Database (futuro) — substituição planejada dos repositórios in-memory por RDBMS/NoSQL após a fase de testes.
 - Serviços externos (opcional): gateway de pagamentos, serviço de notificações.
+
+Justificativa de modelagem: no diagrama C2, a persistência atual é representada como repositório in-memory (e não como banco de dados), pois este é o mecanismo efetivamente implementado no momento. O banco de dados aparece como elemento futuro para deixar explícito o plano de migração.
+
+![C2 - Containers](docs/image/C2_Oficina_Container.png)
 
 ### 4.2.3 Componentes
 
 - Controllers (HTTP) — adaptadores de entrada: `src/interfaces/http/*`.
 - Use-Cases / Application Services — `src/application/use-cases/*`.
 - Domain Entities — `src/domain/entities/*`.
-- Repositories (Infra) — `src/infraestructure/*` (in-memory atualmente).
+- Repositories (Infra) — `src/infraestructure/*` (in-memory atualmente, com substituição planejada após fase de testes).
+
+![C3 - Componentes](docs/image/C3_Oficina_Component.png)
+
+### 4.2.4 Código (C4)
+
+- Nível não documentado nesta etapa.
+- Justificativa: o diagrama de código é direcionado principalmente ao time de desenvolvimento e será produzido após estabilização da estrutura interna de módulos, interfaces e contratos.
 
 ## 4.3 Low Level Design (LLD)
 
@@ -406,35 +444,109 @@ src/
 
 - Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases), Interfaces (adapters), Infrastructure (repositorios, singletons).
 
+Aderência arquitetural e lacunas atuais:
+
+- A separação por camadas está presente na estrutura de pastas.
+- O domínio concentra regras de negócio de ciclo de vida da OS, porém há oportunidades de reforçar isolamento por interfaces (ports) para persistência.
+- A evolução recomendada é reduzir acoplamento entre casos de uso e implementações concretas de repositório por contratos explícitos.
+- Para produção, recomenda-se consolidar estratégia de erros de domínio -> erros HTTP de forma padronizada.
+
 ## 4.4 Decisões Arquiteturais (ADR)
 
 Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). Abaixo há ADRs já tomadas e um modelo para novos registros.
 
 ### ADRs registradas
 
-- **ADR-001 — Adotar DDD para modelagem do domínio**
-  - Data: TODO: inserir data
-  - Decisão: Utilizar Domain-Driven Design para modelagem do núcleo de domínio.
-  - Motivo: Complexidade das regras de negócio relacionadas a Ordens de Serviço, versionamento de orçamentos e transições de estado.
-  - Alternativas consideradas: abordagem anêmica (DTOs sem domínio), modelagem simples sem aggregates.
-  - Impactos: código mais orientado a domínio, testes focados em invariantes, curva de aprendizado para contributors.
+- **ADR-001 — Modelagem de domínio com DDD**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: o fluxo de OS possui regras de transição, validações e invariantes que exigem modelagem explícita.
+  - Decisão: adotar DDD no núcleo de domínio, com foco em aggregate root `OrdemServico` e linguagem ubíqua.
+  - Alternativas consideradas: modelo anêmico com regras distribuídas em controllers/services; scripts transacionais sem agregados.
+  - Consequências positivas: maior consistência das regras, melhor testabilidade de invariantes, documentação mais alinhada ao negócio.
+  - Consequências negativas: curva de aprendizado e maior disciplina de modelagem.
 
-- **ADR-002 — Adotar Clean Architecture**
-  - Data: TODO
-  - Decisão: Separar camadas (Domain, Application, Interfaces, Infrastructure) seguindo princípios da Clean Architecture.
-  - Motivo: Isolar regras de negócio de frameworks e permitir portabilidade/ testabilidade.
-  - Impactos: convenções de código, camadas e dependências explicitadas.
+- **ADR-002 — Estrutura em Clean Architecture**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: necessidade de separar domínio de infraestrutura e framework para reduzir acoplamento e facilitar evolução.
+  - Decisão: manter camadas Domain, Application, Interfaces e Infrastructure no monólito modular.
+  - Alternativas consideradas: arquitetura em camadas sem regra de dependência explícita; abordagem orientada apenas ao framework.
+  - Consequências positivas: maior clareza de responsabilidades e evolução progressiva de adaptadores.
+  - Consequências negativas: necessidade de reforçar contratos (ports/interfaces) para plena inversão de dependência.
 
-- **ADR-003 — Persistência inicial em repositórios In-Memory**
-  - Data: TODO
-  - Decisão: Usar repositórios em memória para MVP e testes.
-  - Motivo: Agilidade na prototipagem e execução de testes sem dependências externas.
-  - Plano de migração: documentar modelo de dados e criar adaptadores para RDBMS (ex.: Postgres) ou NoSQL mais à frente.
+- **ADR-003 — Persistência inicial em memória no MVP**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: fase MVP prioriza validação de domínio, fluxo de negócio e testes iniciais sem custo operacional de banco.
+  - Decisão: utilizar repositórios in-memory como persistência temporária.
+  - Alternativas consideradas: adoção imediata de RDBMS; adoção imediata de NoSQL.
+  - Consequências positivas: velocidade de entrega, ambiente simples para testes iniciais.
+  - Consequências negativas: ausência de durabilidade e limitações para cenários concorrentes reais.
+  - Plano de migração: substituir por banco de dados após fase de testes e estabilização das regras.
 
-- **ADR-004 — Framework: NestJS**
-  - Data: TODO
-  - Decisão: Utilizar NestJS como framework backend.
-  - Motivo: Estrutura modular, suporte a decorators, integração com `@nestjs/swagger`, boa experiência de desenvolvimento.
+- **ADR-004 — Adoção de NestJS como framework backend**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: necessidade de produtividade, modularidade e base consistente para API REST.
+  - Decisão: adotar NestJS como framework principal do backend.
+  - Alternativas consideradas: Express puro; Fastify sem estrutura modular definida no projeto.
+  - Consequências positivas: organização por módulos, integração nativa com validação e Swagger.
+  - Consequências negativas: acoplamento a convenções do framework e necessidade de disciplina para preservar limites de domínio.
+
+- **ADR-005 — Monólito modular no MVP (em vez de microserviços)**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: escopo do MVP e equipe exigem baixa complexidade operacional e foco na regra de negócio.
+  - Decisão: manter monólito modular com separação lógica por contexto.
+  - Alternativas consideradas: decomposição precoce em microserviços.
+  - Consequências positivas: menor custo operacional, debugging simplificado, entrega mais rápida.
+  - Consequências negativas: escala independente por domínio adiada para fases futuras.
+
+- **ADR-006 — Estratégia de persistência pós-testes (RDBMS primário)**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: após validação funcional do MVP, será necessária persistência durável e consistência transacional.
+  - Decisão: adotar banco relacional como persistência primária da OS (ex.: PostgreSQL), mantendo abstração de repositório.
+  - Alternativas consideradas: manutenção do in-memory; migração direta para NoSQL sem necessidade comprovada.
+  - Consequências positivas: integridade referencial, durabilidade e melhor suporte a consultas operacionais.
+  - Consequências negativas: aumento de complexidade de infraestrutura, migração de dados e testes de integração.
+
+- **ADR-007 — Estratégia de autenticação e autorização (JWT + RBAC)**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: endpoints administrativos e operacionais exigirão controle de acesso por perfil.
+  - Decisão: adotar JWT para autenticação stateless e RBAC para autorização por papel.
+  - Alternativas consideradas: autenticação por sessão; API key única para todos os perfis.
+  - Consequências positivas: controle granular de acesso e integração simples com APIs.
+  - Consequências negativas: gestão de ciclo de token e necessidade de política de refresh/revogação.
+
+- **ADR-008 — Estratégia de testes e quality gate**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: o crescimento do domínio exige proteção contra regressão em regras de negócio e fluxo HTTP.
+  - Decisão: definir pirâmide de testes com unitário (domínio/use-case), integração (repositórios/adaptadores) e E2E (fluxo crítico).
+  - Alternativas consideradas: foco apenas em E2E; foco apenas em unitário.
+  - Consequências positivas: feedback mais rápido e cobertura mais robusta de regras.
+  - Consequências negativas: aumento de esforço inicial para setup e manutenção da suíte.
+
+- **ADR-009 — Versionamento de API**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: evolução de contratos HTTP sem quebra de clientes exige estratégia explícita de compatibilidade.
+  - Decisão: versionar endpoints por prefixo (`/v1`) e manter política de depreciação.
+  - Alternativas consideradas: versionamento apenas por header; ausência de versionamento explícito.
+  - Consequências positivas: previsibilidade para consumidores e governança de mudanças.
+  - Consequências negativas: manutenção paralela temporária de versões em transições.
+
+- **ADR-010 — Padronização de erros e observabilidade mínima**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: operação e suporte exigem rastreabilidade de falhas de domínio e infraestrutura.
+  - Decisão: padronizar envelope de erro na API, mapear exceções de domínio para respostas consistentes e adotar logs estruturados com correlation id.
+  - Alternativas consideradas: tratamento ad-hoc por controller; logging sem estrutura.
+  - Consequências positivas: troubleshooting mais rápido e menor ambiguidade para consumidores da API.
+  - Consequências negativas: necessidade de disciplina de implementação em toda a camada HTTP.
 
 ### Modelo de ADR (usar para novos registros)
 
