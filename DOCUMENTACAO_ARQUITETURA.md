@@ -1,6 +1,6 @@
 # Documentação de Arquitetura e Entrega - Projeto Oficina (MVP)
 
-> TODO: Este é um template orientado para avaliadores e desenvolvedores. Preencher incrementalmente.
+Documento em evolução incremental, com foco em decisões arquiteturais e rastreabilidade técnica.
 
 ---
 
@@ -26,6 +26,12 @@ Desenvolver um backend (MVP) para gestão de Ordens de Serviço (OS), permitindo
 - Gestão de serviços e peças
 - Acompanhamento do status da OS via API
 
+Critérios de sucesso do MVP:
+
+- Garantir rastreabilidade de ponta a ponta do fluxo da OS (criação até entrega)
+- Manter consistência das transições de status por regra de domínio
+- Permitir consulta operacional de OS e cadastros com resposta estável via API
+
 ## 1.3 Escopo do MVP
 
 - Ordens de Serviço (OS)
@@ -46,8 +52,6 @@ Fora do escopo (MVP):
 # 2. Requisitos
 
 ## 2.1 Requisitos Funcionais
-
-Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.1.1 Fluxo de OS
 
@@ -109,8 +113,10 @@ Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.2.2 Segurança
 
-- Validação básica de dados (documento, campos obrigatórios) está implementada.
-- JWT: não implementado no MVP (decisão consciente para focar no domínio). Recomenda-se implementação futura para endpoints administrativos.
+- Validação de entrada: campos obrigatórios, formato de documento (CPF/CNPJ), placa e tipos de item da OS.
+- Validação de regra: transições de estado e pré-condições da OS são validadas no domínio.
+- Autenticação/autorização: JWT e RBAC não implementados no MVP por decisão de escopo; adoção prevista para fase posterior.
+- Tratamento de erro: padronização de erros de validação e regra de negócio deve ser aplicada na camada HTTP (plano de evolução).
 
 ### 2.2.3 Performance
 
@@ -122,7 +128,7 @@ Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.2.5 Deploy
 
-- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproducível.
+- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproduzível.
 
 ---
 
@@ -171,12 +177,22 @@ O sistema utiliza uma linguagem ubíqua alinhada ao domínio de oficinas mecâni
   6. Executar
   7. Finalizar
   8. Entregar
+  
+![Texto alternativo](docs/image/eventStorming2.png)  
 
-TODO: link para board Miro / imagem (inserir diagrama Event Storming em `docs/`).
+[Drawio](https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing)
 
 ## 3.3 Entidades e Agregados
 
 O domínio foi modelado utilizando o conceito de Aggregate do Domain-Driven Design, garantindo consistência e controle das regras de negócio.
+
+### 3.3.1 Bounded Contexts (visão atual)
+
+- Contexto Ordem de Serviço (núcleo): concentra regras transacionais e ciclo de vida da OS.
+- Contexto Cadastro: cliente e veículo como entidades referenciadas por identificador.
+- Contexto Catálogo: serviços e peças usados como base para composição dos itens da OS.
+
+Observação arquitetural: no estado atual do MVP, os contextos convivem no mesmo monólito modular. A separação é lógica (domínio e responsabilidades) e não física (serviços independentes).
 
 ### Aggregate Root
 
@@ -191,7 +207,7 @@ A entidade OrdemServico é o Aggregate Root do sistema, sendo responsável por:
 
 Apenas o Aggregate Root pode ser manipulado diretamente por outros componentes do sistema.
 
-📌 Inserir diagrama do Aggregate aqui (OS + itens)
+![DDD Oficina](docs/image/Oficina-DDD.png)  
 
 ---
 
@@ -269,7 +285,7 @@ Todas as regras de negócio são garantidas dentro do Aggregate OrdemServico, in
 - Transições de estado
 - Validação de fluxo
 
-Isso garante que o sistema permaneça consistente mesmo em cenários concorrentes.
+Isso garante consistência de regra de negócio no contexto do MVP e no fluxo operacional previsto.
 
 ## 3.4 Regras de Negócio
 
@@ -359,6 +375,12 @@ As regras de negócio foram centralizadas no Aggregate OrdemServico, garantindo 
 - Todas as transições devem seguir o fluxo definido
 - Todas as validações são realizadas dentro do Aggregate
 
+Regras explicitamente fora do escopo desta etapa:
+
+- Controle transacional de concorrência em nível de banco (será tratado após migração de persistência)
+- Estratégia de cancelamento de OS em estados avançados (a definir em evolução de negócio)
+- Reserva de estoque com lock otimista/pessimista (planejado para fase com banco relacional)
+
 # 4. Arquitetura de Software
 
 ## 4.1 Visão Geral (HLD)
@@ -366,27 +388,47 @@ As regras de negócio foram centralizadas no Aggregate OrdemServico, garantindo 
 - Arquitetura adotada: DDD + Clean Architecture em aplicação NestJS.
 - Descrição: monolito modular com separação clara entre domínio, casos de uso, interfaces e infra.
 
-Inserir diagrama HLD aqui: TODO: Inserir C4/CAMADA/arquitetura (PNG/SVG/Link).
+Diagramas de arquitetura (C4) atualmente documentados:
+
+- C1 (Contexto): `docs/image/C1_Oficina_Context.png`
+- C2 (Containers): `docs/image/C2_Oficina_Container.png`
+- C3 (Componentes): `docs/image/C3_Oficina_Component.png`
+
+Observação: o nível C4 (código) será elaborado em etapa posterior por ser mais orientado a desenvolvedores e depender da estabilização final dos módulos internos.
 
 ## 4.2 Modelo C4
 
 ### 4.2.1 Contexto
 
 - Sistema: Backend da Oficina (MVP) — expõe API para front-end/consumidores.
-- Usuários: clientes, atendentes, mecânicos, administradores.
+- Usuários: clientes, atendentes e mecânicos.
+
+![C1 - Contexto](docs/image/C1_Oficina_Context.png)
 
 ### 4.2.2 Containers
 
 - API (NestJS) — aplica casos de uso; endpoints REST.
-- Database (opcional) — futuro RDBMS/NoSQL.
+- Repositórios In-Memory — persistência temporária utilizada no MVP e durante a fase inicial de testes.
+- Database (futuro) — substituição planejada dos repositórios in-memory por RDBMS/NoSQL após a fase de testes.
 - Serviços externos (opcional): gateway de pagamentos, serviço de notificações.
+
+Justificativa de modelagem: no diagrama C2, a persistência atual é representada como repositório in-memory (e não como banco de dados), pois este é o mecanismo efetivamente implementado no momento. O banco de dados aparece como elemento futuro para deixar explícito o plano de migração.
+
+![C2 - Containers](docs/image/C2_Oficina_Container.png)
 
 ### 4.2.3 Componentes
 
 - Controllers (HTTP) — adaptadores de entrada: `src/interfaces/http/*`.
 - Use-Cases / Application Services — `src/application/use-cases/*`.
 - Domain Entities — `src/domain/entities/*`.
-- Repositories (Infra) — `src/infraestructure/*` (in-memory atualmente).
+- Repositories (Infra) — `src/infraestructure/*` (in-memory atualmente, com substituição planejada após fase de testes).
+
+![C3 - Componentes](docs/image/C3_Oficina_Component.png)
+
+### 4.2.4 Código (C4)
+
+- Nível não documentado nesta etapa.
+- Justificativa: o diagrama de código é direcionado principalmente ao time de desenvolvimento e será produzido após estabilização da estrutura interna de módulos, interfaces e contratos.
 
 ## 4.3 Low Level Design (LLD)
 
@@ -406,46 +448,130 @@ src/
 
 - Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases), Interfaces (adapters), Infrastructure (repositorios, singletons).
 
+Aderência arquitetural e lacunas atuais:
+
+- A separação por camadas está presente na estrutura de pastas.
+- O domínio concentra regras de negócio de ciclo de vida da OS, porém há oportunidades de reforçar isolamento por interfaces (ports) para persistência.
+- A evolução recomendada é reduzir acoplamento entre casos de uso e implementações concretas de repositório por contratos explícitos.
+- Para produção, recomenda-se consolidar estratégia de erros de domínio -> erros HTTP de forma padronizada.
+
 ## 4.4 Decisões Arquiteturais (ADR)
 
 Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). Abaixo há ADRs já tomadas e um modelo para novos registros.
 
 ### ADRs registradas
 
-- **ADR-001 — Adotar DDD para modelagem do domínio**
-  - Data: TODO: inserir data
-  - Decisão: Utilizar Domain-Driven Design para modelagem do núcleo de domínio.
-  - Motivo: Complexidade das regras de negócio relacionadas a Ordens de Serviço, versionamento de orçamentos e transições de estado.
-  - Alternativas consideradas: abordagem anêmica (DTOs sem domínio), modelagem simples sem aggregates.
-  - Impactos: código mais orientado a domínio, testes focados em invariantes, curva de aprendizado para contributors.
+- **ADR-001 — Modelagem de domínio com DDD**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: o fluxo de OS possui regras de transição, validações e invariantes que exigem modelagem explícita.
+  - Decisão: adotar DDD no núcleo de domínio, com foco em aggregate root `OrdemServico` e linguagem ubíqua.
+  - Alternativas consideradas: modelo anêmico com regras distribuídas em controllers/services; scripts transacionais sem agregados.
+  - Consequências positivas: maior consistência das regras, melhor testabilidade de invariantes, documentação mais alinhada ao negócio.
+  - Consequências negativas: curva de aprendizado e maior disciplina de modelagem.
 
-- **ADR-002 — Adotar Clean Architecture**
-  - Data: TODO
-  - Decisão: Separar camadas (Domain, Application, Interfaces, Infrastructure) seguindo princípios da Clean Architecture.
-  - Motivo: Isolar regras de negócio de frameworks e permitir portabilidade/ testabilidade.
-  - Impactos: convenções de código, camadas e dependências explicitadas.
+- **ADR-002 — Estrutura em Clean Architecture**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: necessidade de separar domínio de infraestrutura e framework para reduzir acoplamento e facilitar evolução.
+  - Decisão: manter camadas Domain, Application, Interfaces e Infrastructure no monólito modular.
+  - Alternativas consideradas: arquitetura em camadas sem regra de dependência explícita; abordagem orientada apenas ao framework.
+  - Consequências positivas: maior clareza de responsabilidades e evolução progressiva de adaptadores.
+  - Consequências negativas: necessidade de reforçar contratos (ports/interfaces) para plena inversão de dependência.
 
-- **ADR-003 — Persistência inicial em repositórios In-Memory**
-  - Data: TODO
-  - Decisão: Usar repositórios em memória para MVP e testes.
-  - Motivo: Agilidade na prototipagem e execução de testes sem dependências externas.
-  - Plano de migração: documentar modelo de dados e criar adaptadores para RDBMS (ex.: Postgres) ou NoSQL mais à frente.
+- **ADR-003 — Persistência inicial em memória no MVP**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: fase MVP prioriza validação de domínio, fluxo de negócio e testes iniciais sem custo operacional de banco.
+  - Decisão: utilizar repositórios in-memory como persistência temporária.
+  - Alternativas consideradas: adoção imediata de RDBMS; adoção imediata de NoSQL.
+  - Consequências positivas: velocidade de entrega, ambiente simples para testes iniciais.
+  - Consequências negativas: ausência de durabilidade e limitações para cenários concorrentes reais.
+  - Plano de migração: substituir por banco de dados após fase de testes e estabilização das regras.
 
-- **ADR-004 — Framework: NestJS**
-  - Data: TODO
-  - Decisão: Utilizar NestJS como framework backend.
-  - Motivo: Estrutura modular, suporte a decorators, integração com `@nestjs/swagger`, boa experiência de desenvolvimento.
+- **ADR-004 — Adoção de NestJS como framework backend**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: necessidade de produtividade, modularidade e base consistente para API REST.
+  - Decisão: adotar NestJS como framework principal do backend.
+  - Alternativas consideradas: Express puro; Fastify sem estrutura modular definida no projeto.
+  - Consequências positivas: organização por módulos, integração nativa com validação e Swagger.
+  - Consequências negativas: acoplamento a convenções do framework e necessidade de disciplina para preservar limites de domínio.
+
+- **ADR-005 — Monólito modular no MVP (em vez de microserviços)**
+  - Status: Aceito
+  - Data: 2026-04-18
+  - Contexto: escopo do MVP e equipe exigem baixa complexidade operacional e foco na regra de negócio.
+  - Decisão: manter monólito modular com separação lógica por contexto.
+  - Alternativas consideradas: decomposição precoce em microserviços.
+  - Consequências positivas: menor custo operacional, debugging simplificado, entrega mais rápida.
+  - Consequências negativas: escala independente por domínio adiada para fases futuras.
+
+- **ADR-006 — Estratégia de persistência pós-testes (RDBMS primário)**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: após validação funcional do MVP, será necessária persistência durável e consistência transacional.
+  - Decisão: adotar banco relacional como persistência primária da OS (ex.: PostgreSQL), mantendo abstração de repositório.
+  - Alternativas consideradas: manutenção do in-memory; migração direta para NoSQL sem necessidade comprovada.
+  - Consequências positivas: integridade referencial, durabilidade e melhor suporte a consultas operacionais.
+  - Consequências negativas: aumento de complexidade de infraestrutura, migração de dados e testes de integração.
+
+- **ADR-007 — Estratégia de autenticação e autorização (JWT + RBAC)**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: endpoints administrativos e operacionais exigirão controle de acesso por perfil.
+  - Decisão: adotar JWT para autenticação stateless e RBAC para autorização por papel.
+  - Alternativas consideradas: autenticação por sessão; API key única para todos os perfis.
+  - Consequências positivas: controle granular de acesso e integração simples com APIs.
+  - Consequências negativas: gestão de ciclo de token e necessidade de política de refresh/revogação.
+
+- **ADR-008 — Estratégia de testes e quality gate**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: o crescimento do domínio exige proteção contra regressão em regras de negócio e fluxo HTTP.
+  - Decisão: definir pirâmide de testes com unitário (domínio/use-case), integração (repositórios/adaptadores) e E2E (fluxo crítico).
+  - Alternativas consideradas: foco apenas em E2E; foco apenas em unitário.
+  - Consequências positivas: feedback mais rápido e cobertura mais robusta de regras.
+  - Consequências negativas: aumento de esforço inicial para setup e manutenção da suíte.
+
+- **ADR-009 — Versionamento de API**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: evolução de contratos HTTP sem quebra de clientes exige estratégia explícita de compatibilidade.
+  - Decisão: versionar endpoints por prefixo (`/v1`) e manter política de depreciação.
+  - Alternativas consideradas: versionamento apenas por header; ausência de versionamento explícito.
+  - Consequências positivas: previsibilidade para consumidores e governança de mudanças.
+  - Consequências negativas: manutenção paralela temporária de versões em transições.
+
+- **ADR-010 — Padronização de erros e observabilidade mínima**
+  - Status: Proposto
+  - Data: 2026-04-18
+  - Contexto: operação e suporte exigem rastreabilidade de falhas de domínio e infraestrutura.
+  - Decisão: padronizar envelope de erro na API, mapear exceções de domínio para respostas consistentes e adotar logs estruturados com correlation id.
+  - Alternativas consideradas: tratamento ad-hoc por controller; logging sem estrutura.
+  - Consequências positivas: troubleshooting mais rápido e menor ambiguidade para consumidores da API.
+  - Consequências negativas: necessidade de disciplina de implementação em toda a camada HTTP.
 
 ### Modelo de ADR (usar para novos registros)
 
 ```
 Title: ADR-XXX - Título da decisão
+Status: proposed | accepted | superseded | deprecated
 Date: YYYY-MM-DD
-Status: proposed | accepted | deprecated
-Context: Breve descrição do contexto e por que a decisão é necessária
-Decision: O que foi decidido
-Consequences: Impactos técnicos e organizacionais
-Alternatives: Alternativas consideradas e por que foram rejeitadas
+Context:
+  - Problema arquitetural e motivação
+  - Restrições e premissas
+Decision:
+  - Decisão tomada
+  - Escopo da decisão
+Alternatives:
+  - Opção A (prós/contras)
+  - Opção B (prós/contras)
+Consequences:
+  - Positivas
+  - Negativas/trade-offs
+Follow-up Actions:
+  - Ação técnica necessária para consolidar a decisão
 ```
 
 Salvar ADRs em `docs/adr/ADR-XXX.md`.
@@ -456,50 +582,229 @@ Salvar ADRs em `docs/adr/ADR-XXX.md`.
 
 ## 5.1 Endpoints
 
-Listagem detectada (preenchida automaticamente a partir de controllers):
+Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de rota):
 
-- `src/interfaces/http/ordem-servico.controller.ts` — endpoints de OS (criar, adicionar itens, gerar orçamento, aprovar, iniciar execução, finalizar, entregar, buscar)
-- `src/interfaces/http/cliente.controller.ts` — endpoints de cliente (CRUD)
-- `src/interfaces/http/peca.controller.ts` — endpoints de peça (CRUD, ajustar estoque)
-- `src/interfaces/http/servico.controller.ts` — endpoints de serviço (CRUD)
-- `src/interfaces/http/veiculo.controller.ts` — endpoints de veículo (CRUD)
+### Ordem de Serviço (`/os`)
 
-Para cada endpoint preencher:
+- `POST /os`
+  - Descrição: cria uma OS.
+  - Request (exemplo):
+    ```json
+    {
+      "clienteId": "uuid-opcional",
+      "veiculoId": "uuid-opcional"
+    }
+    ```
+  - Respostas:
+    - `200`: OS criada.
+    - `400`: `clienteId`/`veiculoId` inválidos.
 
-- Método e rota: `POST /ordens`, `GET /ordens/:id`, etc. — TODO: extrair do código e completar.
-- Descrição: TODO
-- Request (exemplo): TODO
-- Response (exemplo): TODO
+- `POST /os/:id/item`
+  - Descrição: adiciona item (serviço/peça) à OS.
+  - Request (exemplo):
+    ```json
+    {
+      "tipo": "SERVICO",
+      "idReferencia": "uuid-servico-ou-peca",
+      "quantidade": 1
+    }
+    ```
+  - Respostas:
+    - `200`: item adicionado.
+    - `404`: OS não encontrada.
+    - `400`: violação de regra de domínio.
+
+- `POST /os/:id/orcamento`
+- `POST /os/:id/diagnostico`
+- `POST /os/:id/aprovar`
+- `POST /os/:id/executar`
+- `POST /os/:id/finalizar`
+- `POST /os/:id/entregar`
+  - Descrição: transições do fluxo da OS.
+  - Respostas comuns:
+    - `200`: transição aplicada.
+    - `404`: OS não encontrada.
+    - `400`: transição inválida para o status atual.
+
+- `GET /os/:id`
+  - Descrição: consulta OS por identificador.
+  - Respostas: `200`/`404`.
+
+- `GET /os`
+  - Descrição: lista OS.
+
+### Clientes (`/clientes`)
+
+- `POST /clientes`
+  - Request: `{ "nome": "...", "documento": "..." }`
+  - Respostas: `200`/`400`.
+
+- `GET /clientes/:id`
+  - Respostas: `200`/`404`.
+
+- `GET /clientes`
+
+### Veículos (`/veiculos`)
+
+- `POST /veiculos`
+  - Request: `{ "placa": "...", "modelo": "...", "marca": "...", "ano": 2024 }`
+  - Respostas: `200`/`400`.
+
+- `GET /veiculos/:id`
+- `GET /veiculos`
+
+### Serviços (`/servicos`)
+
+- `POST /servicos`
+  - Request: `{ "nome": "...", "preco": 120.0 }`
+  - Respostas: `200`/`400`.
+
+- `GET /servicos/:id`
+- `GET /servicos`
+
+### Peças (`/pecas`)
+
+- `POST /pecas`
+  - Request: `{ "nome": "...", "preco": 50.0, "estoque": 10 }`
+  - Respostas: `200`/`400`.
+
+- `PATCH /pecas/:id/estoque`
+  - Request: `{ "delta": -1 }`
+  - Respostas: `200`/`400`.
+
+- `GET /pecas/:id`
+- `GET /pecas`
+
+Padronização de erro (estado atual):
+
+- Exceções de validação e regra de domínio são mapeadas principalmente para `400`.
+- Recursos inexistentes são mapeados para `404`.
+- A padronização de envelope de erro ficará na evolução do ADR-010.
 
 ## 5.2 Swagger / OpenAPI
 
-- TODO: instruções para geração de documentação OpenAPI (ex.: decorators NestJS + `@nestjs/swagger`).
-- Espaço para link: TODO — inserir link para Swagger UI ou arquivo `openapi.yaml`.
+Implementação concluída:
+
+- Dependências instaladas:
+  - `@nestjs/swagger`
+  - `swagger-ui-express`
+- Bootstrap configurado em `src/main.ts` com `DocumentBuilder` e `SwaggerModule`.
+- Endpoints publicados:
+  - UI interativa: `/docs`
+  - JSON OpenAPI: `/docs-json`
+
+Como validar funcionamento:
+
+1. Subir a aplicação:
+  ```bash
+  npm run start:dev
+  ```
+2. Abrir a UI do Swagger no navegador:
+  - `http://localhost:3000/docs`
+3. Validar se o JSON OpenAPI está acessível:
+  - `http://localhost:3000/docs-json`
+4. Confirmar que os controllers principais aparecem na documentação:
+  - `/os`, `/clientes`, `/veiculos`, `/servicos`, `/pecas`
+
+Observações importantes:
+
+- Os endpoints já utilizam DTOs específicos para request body, com propriedades documentadas via `@ApiProperty`.
+- Controllers principais estão decorados com `@ApiTags`, `@ApiOperation`, `@ApiBody` e `@ApiResponse` para melhorar descrição de operações e respostas.
+- Evolução recomendada: adotar validação automática com `class-validator` + `ValidationPipe` e enriquecer schemas de resposta tipando DTOs de saída.
 
 ---
 
 # 6. Segurança
 
-- Autenticação recomendada: JWT
-  - TODO: justificar escolha e documentar fluxo (login, refresh tokens, roles).
-- Validação de dados: DTOs, pipes de validação (ex.: `class-validator`).
-- Exposição mínima de dados: aplicar DTOs de saída (sem expor campos sensíveis).
+Estado atual (MVP):
 
-TODO: seção para políticas de segurança, checklist de configuração de secrets, HTTPS, CORS, rate limiting.
+- Sem autenticação/autorização ativa nos endpoints.
+- Validação de entrada implementada de forma pontual nos controllers/use-cases.
+- Persistência em memória (sem dados sensíveis persistidos em disco pela aplicação).
+
+Estratégia alvo (pós-MVP):
+
+- Autenticação: JWT (access token + refresh token).
+- Autorização: RBAC por perfil operacional.
+- Hardening de API:
+  - CORS restrito por ambiente.
+  - Rate limiting por IP/cliente.
+  - Segredos via variáveis de ambiente e cofre/CI.
+  - Uso obrigatório de HTTPS em ambientes não-locais.
+
+Checklist de segurança para entrega técnica:
+
+- [ ] Definir claims e tempo de expiração de tokens.
+- [ ] Definir matriz de permissões por endpoint.
+- [ ] Definir política de rotação de secrets.
+- [ ] Padronizar resposta de erro sem vazamento de detalhes internos.
 
 ---
 
 # 7. Testes
 
-- Estratégia:
-  - Unit tests: domínio e use-cases.
-  - Integration tests: controllers + repositorios.
-  - E2E tests: fluxo completo (ex.: `test/workflow.e2e-spec.ts`).
+Estratégia adotada:
 
-- Ferramentas sugeridas: Jest, Supertest para E2E.
-- Cobertura: meta 80% — se não for atingida, justificar analiticamente.
+- Unit tests: regras de domínio e casos de uso.
+- E2E tests: fluxos HTTP críticos.
+- Integração: parcialmente coberta pelos testes E2E devido à persistência in-memory.
 
-TODO: preencher matrix de testes (lista de casos prioritários) e comandos para rodar.
+Justificativa do método:
+
+- Pirâmide de testes aplicada para reduzir custo de manutenção e aumentar velocidade de feedback.
+- Regras críticas de negócio ficam protegidas por testes unitários de domínio (entidades) e de aplicação (use-cases).
+- Fluxos HTTP ponta a ponta permanecem validados por E2E, garantindo contrato funcional mínimo.
+
+Artefatos atuais:
+
+- `test/app.e2e-spec.ts`
+- `test/workflow.e2e-spec.ts`
+- `src/domain/entities/*.spec.ts` (ciclo da OS, itens, estoque e entidades de cadastro)
+- `src/application/use-cases/*.spec.ts` (fluxo crítico da OS, busca, cadastro e listagem)
+
+Comandos oficiais (package.json):
+
+- `npm run test`
+- `npm run test:watch`
+- `npm run test:cov`
+- `npm run test:cov:critical`
+- `npm run test:e2e`
+
+Ferramentas:
+
+- Jest
+- Supertest
+
+Meta e quality gate sugeridos para evolução:
+
+- Cobertura mínima: `>= 80%` em domínio + use-cases.
+- Gate de CI:
+  - build
+  - lint
+  - test
+  - test:e2e
+
+Automação implementada no repositório:
+
+- Workflow de CI em `.github/workflows/ci.yml` executando build, lint, unit, e2e e cobertura crítica.
+- Threshold obrigatório de cobertura crítica definido em `jest.critical.config.js` com mínimo de `80%` para statements, branches, functions e lines.
+
+Resultado atual (escopo crítico medido com `test:cov:critical`):
+
+- Statements: `97.9%`
+- Branches: `92.78%`
+- Functions: `100%`
+- Lines: `99.53%`
+
+Conclusão: requisito de cobertura mínima `>= 80%` para domínios críticos atendido.
+
+Matriz mínima de cenários críticos:
+
+- Criação de OS com referência válida/inválida de cliente/veículo.
+- Transições válidas e inválidas de status.
+- Geração/aprovação de orçamento.
+- Ajuste de estoque de peça com delta positivo/negativo.
+- Busca de recursos inexistentes (`404`).
 
 ---
 
@@ -507,64 +812,32 @@ TODO: preencher matrix de testes (lista de casos prioritários) e comandos para 
 
 ## 8.1 Dockerfile
 
-Exemplo de `Dockerfile` para construir a API (Node + NestJS). Ajustar `NODE_ENV`, versão do Node e scripts conforme `package.json`.
+Estado atual:
 
-```dockerfile
-# Stage 1 — build
-FROM node:18-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
+- O repositório ainda não possui arquivo `Dockerfile` versionado.
 
-# Stage 2 — runtime
-FROM node:18-alpine
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=build /app/dist ./dist
-COPY package*.json ./
-RUN npm ci --only=production
-EXPOSE 3000
-CMD ["node", "dist/main.js"]
-```
+Decisão para próxima fase:
 
-Notas:
-- Em desenvolvimento local pode-se usar `npm run start:dev` sem Docker.
-- Para usar variáveis de ambiente sensíveis, usar secrets/CSVs no CI ou `docker secrets` em produção.
+- Publicar `Dockerfile` multi-stage para build e runtime com Node LTS.
+- Separar configuração por ambiente (`development`, `staging`, `production`).
 
 ## 8.2 docker-compose
 
-Exemplo `docker-compose.yml` com a API e um Postgres opcional (ajustar se optar por DB):
+Estado atual:
 
-```yaml
-version: '3.8'
-services:
-  api:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/oficina
-    depends_on:
-      - db
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=oficina
-    volumes:
-      - db-data:/var/lib/postgresql/data
+- O repositório ainda não possui `docker-compose.yml` versionado.
 
-volumes:
-  db-data:
-```
+Diretriz para evolução:
+
+- Incluir `docker-compose.yml` com:
+  - serviço `api`
+  - serviço de banco (após migração de persistência)
+  - variáveis por arquivo `.env`
+  - volume persistente para banco
 
 ## 8.3 Execução local
 
-Comandos mínimos (exemplo):
+Comandos válidos para o estado atual do projeto:
 
 ```bash
 npm install
@@ -572,48 +845,82 @@ npm run build
 npm run start:dev
 ```
 
-Para executar com Docker Compose:
+Observações:
 
-```bash
-docker compose up --build
-# ou (Windows cmd):
-# docker-compose up --build
-```
-
-Para rodar apenas a API em container:
-
-```bash
-docker build -t oficina-api .
-docker run -p 3000:3000 --env NODE_ENV=production oficina-api
-```
-
-TODO: substituir `DATABASE_URL` e secrets por valores do ambiente/CI.
+- `npm run start:prod` depende de build prévio em `dist`.
+- A execução com Docker está planejada, mas depende da publicação dos artefatos de infraestrutura (Dockerfile e compose).
 
 ---
 
 # 9. Qualidade de Software
 
-- Boas práticas aplicadas:
-  - Separação de camadas (DDD + Clean)
-  - Nomeclatura consistente (Linguagem Ubíqua)
-  - Repositórios com interface explícita
-  - Uso de DTOs e validação
+Objetivo de qualidade:
 
-- Ferramentas de qualidade recomendadas: ESLint, Prettier, SonarCloud/Scanner.
+- Reduzir regressão funcional no fluxo de OS.
+- Garantir consistência arquitetural entre domínio, casos de uso e interfaces HTTP.
+- Aplicar validação contínua em build, lint e testes automatizados.
 
-TODO: anexar políticas de lint e formato de commits (Conventional Commits).
+Padrões e políticas adotadas:
+
+- Linting: ESLint (`npm run lint`).
+- Formatação: Prettier (`npm run format`).
+- Testes: Jest + Supertest (`npm run test`, `npm run test:e2e`).
+- Contrato de API: Swagger/OpenAPI publicado em `/docs` e `/docs-json`.
+
+Quality gate recomendado para CI:
+
+1. `npm run build`
+2. `npm run lint`
+3. `npm run test`
+4. `npm run test:e2e`
+5. `npm audit --omit=dev`
+
+Política de versionamento e commits:
+
+- Recomenda-se Conventional Commits para rastreabilidade de mudança arquitetural e funcional.
+- Recomenda-se branch strategy baseada em feature branch + PR com revisão obrigatória.
+
+Critérios mínimos para aceite de PR:
+
+- Build sem erros.
+- Sem erro de lint.
+- Testes locais (unit + e2e) verdes.
+- Mudanças de contrato refletidas no Swagger.
 
 ---
 
 # 10. Análise de Vulnerabilidades
 
-- Espaço para resultados de scan: TODO
+Baseline atual (executado em 2026-04-18):
 
-- Processo recomendado:
-  - `npm audit` + `npm audit fix` como passo inicial
-  - SCA em CI (dependabot, Snyk ou similares)
+- `npm audit --json`: 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica) considerando todo o grafo.
+- `npm audit --omit=dev`: 3 vulnerabilidades altas em dependências de produção:
+  - `@nestjs/core`
+  - `path-to-regexp`
+  - `@nestjs/platform-express`
 
-TODO: adicionar resultados e justificativas após execução do scan.
+Processo operacional de tratamento:
+
+1. Executar auditoria em toda alteração relevante:
+   - `npm audit --omit=dev`
+2. Aplicar correções automáticas seguras:
+   - `npm audit fix`
+3. Reexecutar build e testes após correção:
+   - `npm run build`
+   - `npm run test`
+   - `npm run test:e2e`
+4. Registrar risco residual no PR quando a atualização não puder ser aplicada imediatamente.
+
+Política de severidade sugerida:
+
+- Crítica/Alta em dependência de produção: bloquear release até mitigação ou exceção formal documentada.
+- Moderada: corrigir no próximo ciclo planejado.
+- Baixa: tratar por backlog técnico com janela definida.
+
+Evolução recomendada:
+
+- Habilitar SCA contínuo (Dependabot/Snyk/GitHub Advisory) no pipeline.
+- Definir SLA de correção por severidade para governança de segurança.
 
 ---
 
@@ -628,10 +935,10 @@ TODO: adicionar resultados e justificativas após execução do scan.
 ## 11.2 Scripts úteis
 
 - `npm run test` — rodar testes unitários
+- `npm run test:cov` — cobertura global (inclui toda a base)
+- `npm run test:cov:critical` — cobertura do escopo crítico (domínio + use-cases)
 - `npm run test:e2e` — rodar testes E2E (se configurado)
 - `npm run lint` — rodar lint
-
-TODO: confirmar comandos no `package.json`.
 
 ---
 
@@ -666,7 +973,7 @@ Referências locais já presentes no repositório:
 - **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
 - **Limitações conhecidas:** persistência em memória (não persistente entre execuções), JWT não implementado no MVP, cobertura de testes parcial e monitoramento simplificado.
 - **Próximos passos:**
-  1. Completar documentação das APIs e contratos (OpenAPI/Swagger).
+  1. Evoluir documentação de contrato com DTOs de resposta e padronização de erros no OpenAPI/Swagger.
   2. Implementar persistência em DB e plano de migração.
   3. Implementar autenticação/autorizações (JWT) para endpoints administrativos.
   4. Expandir testes unitários e integração para atingir meta de cobertura.

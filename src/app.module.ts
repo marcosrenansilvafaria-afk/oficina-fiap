@@ -7,6 +7,12 @@ import { PecaController } from './interfaces/http/peca.controller';
 
 @Module({
   imports: [],
-  controllers: [OrdemServicoController, ClienteController, VeiculoController, ServicoController, PecaController],
+  controllers: [
+    OrdemServicoController,
+    ClienteController,
+    VeiculoController,
+    ServicoController,
+    PecaController,
+  ],
 })
 export class AppModule {}

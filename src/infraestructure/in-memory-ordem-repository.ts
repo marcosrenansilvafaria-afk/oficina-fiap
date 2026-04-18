@@ -18,4 +18,8 @@ export class InMemoryOrdemRepository {
   all(): OrdemServico[] {
     return Array.from(this.store.values());
   }
+
+  clear() {
+    this.store.clear();
+  }
 }

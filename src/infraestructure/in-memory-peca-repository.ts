@@ -14,4 +14,8 @@ export class InMemoryPecaRepository {
   all(): Peca[] {
     return Array.from(this.store.values());
   }
+
+  clear() {
+    this.store.clear();
+  }
 }

@@ -1,0 +1,15 @@
+{
+  "files.associations": {
+    "*.wsd": "plantuml"
+  },
+  "plantuml.render": "Local",
+  "plantuml.java": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.18.8-hotspot\\bin\\java.exe",
+  "plantuml.graphviz": "C:\\Program Files\\Graphviz\\bin\\dot.exe",
+  "plantuml.jar": "C:\\tools\\plantuml\\plantuml.jar",
+  "plantuml.commandArgs": [
+    "-DGRAPHVIZ_DOT=C:\\Program Files\\Graphviz\\bin\\dot.exe"
+  ],
+  "plantuml.previewAutoUpdate": true,
+  "plantuml.trace.server": "off",
+  "plantuml.exportFormat": "png"
+}

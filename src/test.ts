@@ -2,7 +2,13 @@ import { CriarOrdemServico } from './application/use-cases/criar-ordem-servico';
 import { AdicionarItemOrdemServico } from './application/use-cases/adicionar-item-ordem-servico';
 import { GerarOrcamento } from './application/use-cases/gerar-orcamento';
 import { AprovarOrcamento } from './application/use-cases/aprovar-orcamento';
-import { clienteRepo, veiculoRepo, ordemRepo, pecaRepo, servicoRepo } from './infraestructure/singletons';
+import {
+  clienteRepo,
+  veiculoRepo,
+  ordemRepo,
+  pecaRepo,
+  servicoRepo,
+} from './infraestructure/singletons';
 
 const criar = new CriarOrdemServico(ordemRepo, clienteRepo, veiculoRepo);
 const add = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);

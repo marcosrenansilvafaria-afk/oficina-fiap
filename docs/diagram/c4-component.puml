@@ -1,0 +1,37 @@
+@startuml C3_Oficina_Component
+!NEW_C4_STYLE=1
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_LEFT_RIGHT()
+
+title C3 - Componentes da API Backend Oficina (MVP)
+
+Person(cliente, "Cliente")
+Person(atendente, "Atendente")
+Person(mecanico, "Mecanico")
+
+System_Ext(notificacao, "Servico de Notificacao", "Integracao futura")
+System_Ext(pagamento, "Gateway de Pagamento", "Integracao futura")
+
+Container_Boundary(api, "API Backend (NestJS)") {
+  Component(httpControllers, "HTTP Controllers", "NestJS Controllers", "Endpoints REST para OS, cliente, veiculo, servico e peca")
+  Component(useCases, "Application Use Cases", "Application Layer", "Orquestra o fluxo de negocio")
+  Component(domainModel, "Domain Model", "DDD Entities/Aggregates", "Regras de negocio e transicoes da ordem de servico")
+  Component(inMemoryRepos, "In-Memory Repositories", "Infrastructure", "Persistencia temporaria para MVP e fase inicial de testes")
+  Component(singletonWiring, "Singletons/Providers", "NestJS Providers", "Compoe dependencias entre controllers, use cases e repositorios")
+}
+
+Rel(cliente, httpControllers, "Consulta status e aprova orcamento", "HTTP/REST")
+Rel(atendente, httpControllers, "Cria e gerencia OS", "HTTP/REST")
+Rel(mecanico, httpControllers, "Atualiza execucao", "HTTP/REST")
+
+Rel(httpControllers, useCases, "Invoca", "Metodo")
+Rel(useCases, domainModel, "Aplica regras", "Objeto de dominio")
+Rel(useCases, inMemoryRepos, "Le/Escreve", "Repository")
+Rel(singletonWiring, useCases, "Instancia e injeta", "Nest DI")
+Rel(singletonWiring, inMemoryRepos, "Registra implementacoes", "Nest DI")
+
+Rel(useCases, notificacao, "Envia notificacoes", "Async (futuro)")
+Rel(useCases, pagamento, "Processa pagamentos", "HTTP (futuro)")
+
+SHOW_LEGEND()
+@enduml

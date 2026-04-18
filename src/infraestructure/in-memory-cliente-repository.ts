@@ -14,4 +14,8 @@ export class InMemoryClienteRepository {
   all(): Cliente[] {
     return Array.from(this.store.values());
   }
+
+  clear() {
+    this.store.clear();
+  }
 }

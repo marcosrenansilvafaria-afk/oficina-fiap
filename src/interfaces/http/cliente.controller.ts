@@ -1,24 +1,37 @@
 import {
-  Controller, 
+  Controller,
   Post,
   Body,
   Get,
   Param,
   NotFoundException,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CriarCliente } from '../../application/use-cases/criar-cliente';
 import { BuscarCliente } from '../../application/use-cases/buscar-cliente';
 import { clienteRepo } from '../../infraestructure/singletons';
+import { CriarClienteDto } from './dto/cliente.dto';
 
 @Controller('clientes')
+@ApiTags('clientes')
 export class ClienteController {
   private criarCliente = new CriarCliente(clienteRepo);
   private buscarCliente = new BuscarCliente();
   private repo = clienteRepo;
 
+  @ApiOperation({ summary: 'Criar cliente' })
+  @ApiBody({ type: CriarClienteDto })
+  @ApiOkResponse({ description: 'Cliente criado com sucesso' })
   @Post()
-  criar(@Body() body: any) {
+  criar(@Body() body: CriarClienteDto) {
     if (!body || !body.nome || !body.documento) {
       throw new BadRequestException('nome e documento são obrigatórios');
     }
@@ -26,7 +39,7 @@ export class ClienteController {
     try {
       const cliente = this.criarCliente.execute({
         nome: body.nome,
-        documento: body.documento
+        documento: body.documento,
       });
       return cliente;
     } catch (err: any) {
@@ -34,6 +47,10 @@ export class ClienteController {
     }
   }
 
+  @ApiOperation({ summary: 'Buscar cliente por id' })
+  @ApiParam({ name: 'id', description: 'Id do cliente' })
+  @ApiOkResponse({ description: 'Cliente encontrado' })
+  @ApiNotFoundResponse({ description: 'Cliente não encontrado' })
   @Get(':id')
   buscar(@Param('id') id: string) {
     const cliente = this.repo.getById(id);
@@ -41,6 +58,8 @@ export class ClienteController {
     return this.buscarCliente.execute(cliente);
   }
 
+  @ApiOperation({ summary: 'Listar clientes' })
+  @ApiOkResponse({ description: 'Lista de clientes retornada com sucesso' })
   @Get()
   listar() {
     return this.repo.all();

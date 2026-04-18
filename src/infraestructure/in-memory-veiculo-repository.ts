@@ -14,4 +14,8 @@ export class InMemoryVeiculoRepository {
   all(): Veiculo[] {
     return Array.from(this.store.values());
   }
+
+  clear() {
+    this.store.clear();
+  }
 }
