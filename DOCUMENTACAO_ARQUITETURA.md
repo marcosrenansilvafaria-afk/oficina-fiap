@@ -1,6 +1,6 @@
 # Documentação de Arquitetura e Entrega - Projeto Oficina (MVP)
 
-> TODO: Este é um template orientado para avaliadores e desenvolvedores. Preencher incrementalmente.
+Documento em evolução incremental, com foco em decisões arquiteturais e rastreabilidade técnica.
 
 ---
 
@@ -52,8 +52,6 @@ Fora do escopo (MVP):
 # 2. Requisitos
 
 ## 2.1 Requisitos Funcionais
-
-Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.1.1 Fluxo de OS
 
@@ -130,7 +128,7 @@ Obs: separar por fluxo de OS e gestão administrativa.
 
 ### 2.2.5 Deploy
 
-- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproducível.
+- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproduzível.
 
 ---
 
@@ -180,7 +178,7 @@ O sistema utiliza uma linguagem ubíqua alinhada ao domínio de oficinas mecâni
   7. Finalizar
   8. Entregar
   
-![Texto alternativo](docs\image\eventStorming2.png)  
+![Texto alternativo](docs/image/eventStorming2.png)  
 
 [Drawio](https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing)
 
@@ -209,7 +207,7 @@ A entidade OrdemServico é o Aggregate Root do sistema, sendo responsável por:
 
 Apenas o Aggregate Root pode ser manipulado diretamente por outros componentes do sistema.
 
-![DDD Oficina](docs\image\Oficina-DDD.png)  
+![DDD Oficina](docs/image/Oficina-DDD.png)  
 
 ---
 
@@ -287,7 +285,7 @@ Todas as regras de negócio são garantidas dentro do Aggregate OrdemServico, in
 - Transições de estado
 - Validação de fluxo
 
-Isso garante que o sistema permaneça consistente mesmo em cenários concorrentes.
+Isso garante consistência de regra de negócio no contexto do MVP e no fluxo operacional previsto.
 
 ## 3.4 Regras de Negócio
 
@@ -376,6 +374,12 @@ As regras de negócio foram centralizadas no Aggregate OrdemServico, garantindo 
 - Não é permitido pular estados
 - Todas as transições devem seguir o fluxo definido
 - Todas as validações são realizadas dentro do Aggregate
+
+Regras explicitamente fora do escopo desta etapa:
+
+- Controle transacional de concorrência em nível de banco (será tratado após migração de persistência)
+- Estratégia de cancelamento de OS em estados avançados (a definir em evolução de negócio)
+- Reserva de estoque com lock otimista/pessimista (planejado para fase com banco relacional)
 
 # 4. Arquitetura de Software
 
@@ -552,12 +556,22 @@ Este projeto registra decisões arquiteturais importantes como ADRs (Architectur
 
 ```
 Title: ADR-XXX - Título da decisão
+Status: proposed | accepted | superseded | deprecated
 Date: YYYY-MM-DD
-Status: proposed | accepted | deprecated
-Context: Breve descrição do contexto e por que a decisão é necessária
-Decision: O que foi decidido
-Consequences: Impactos técnicos e organizacionais
-Alternatives: Alternativas consideradas e por que foram rejeitadas
+Context:
+  - Problema arquitetural e motivação
+  - Restrições e premissas
+Decision:
+  - Decisão tomada
+  - Escopo da decisão
+Alternatives:
+  - Opção A (prós/contras)
+  - Opção B (prós/contras)
+Consequences:
+  - Positivas
+  - Negativas/trade-offs
+Follow-up Actions:
+  - Ação técnica necessária para consolidar a decisão
 ```
 
 Salvar ADRs em `docs/adr/ADR-XXX.md`.
@@ -568,50 +582,206 @@ Salvar ADRs em `docs/adr/ADR-XXX.md`.
 
 ## 5.1 Endpoints
 
-Listagem detectada (preenchida automaticamente a partir de controllers):
+Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de rota):
 
-- `src/interfaces/http/ordem-servico.controller.ts` — endpoints de OS (criar, adicionar itens, gerar orçamento, aprovar, iniciar execução, finalizar, entregar, buscar)
-- `src/interfaces/http/cliente.controller.ts` — endpoints de cliente (CRUD)
-- `src/interfaces/http/peca.controller.ts` — endpoints de peça (CRUD, ajustar estoque)
-- `src/interfaces/http/servico.controller.ts` — endpoints de serviço (CRUD)
-- `src/interfaces/http/veiculo.controller.ts` — endpoints de veículo (CRUD)
+### Ordem de Serviço (`/os`)
 
-Para cada endpoint preencher:
+- `POST /os`
+  - Descrição: cria uma OS.
+  - Request (exemplo):
+    ```json
+    {
+      "clienteId": "uuid-opcional",
+      "veiculoId": "uuid-opcional"
+    }
+    ```
+  - Respostas:
+    - `200`: OS criada.
+    - `400`: `clienteId`/`veiculoId` inválidos.
 
-- Método e rota: `POST /ordens`, `GET /ordens/:id`, etc. — TODO: extrair do código e completar.
-- Descrição: TODO
-- Request (exemplo): TODO
-- Response (exemplo): TODO
+- `POST /os/:id/item`
+  - Descrição: adiciona item (serviço/peça) à OS.
+  - Request (exemplo):
+    ```json
+    {
+      "tipo": "SERVICO",
+      "idReferencia": "uuid-servico-ou-peca",
+      "quantidade": 1
+    }
+    ```
+  - Respostas:
+    - `200`: item adicionado.
+    - `404`: OS não encontrada.
+    - `400`: violação de regra de domínio.
+
+- `POST /os/:id/orcamento`
+- `POST /os/:id/diagnostico`
+- `POST /os/:id/aprovar`
+- `POST /os/:id/executar`
+- `POST /os/:id/finalizar`
+- `POST /os/:id/entregar`
+  - Descrição: transições do fluxo da OS.
+  - Respostas comuns:
+    - `200`: transição aplicada.
+    - `404`: OS não encontrada.
+    - `400`: transição inválida para o status atual.
+
+- `GET /os/:id`
+  - Descrição: consulta OS por identificador.
+  - Respostas: `200`/`404`.
+
+- `GET /os`
+  - Descrição: lista OS.
+
+### Clientes (`/clientes`)
+
+- `POST /clientes`
+  - Request: `{ "nome": "...", "documento": "..." }`
+  - Respostas: `200`/`400`.
+
+- `GET /clientes/:id`
+  - Respostas: `200`/`404`.
+
+- `GET /clientes`
+
+### Veículos (`/veiculos`)
+
+- `POST /veiculos`
+  - Request: `{ "placa": "...", "modelo": "...", "marca": "...", "ano": 2024 }`
+  - Respostas: `200`/`400`.
+
+- `GET /veiculos/:id`
+- `GET /veiculos`
+
+### Serviços (`/servicos`)
+
+- `POST /servicos`
+  - Request: `{ "nome": "...", "preco": 120.0 }`
+  - Respostas: `200`/`400`.
+
+- `GET /servicos/:id`
+- `GET /servicos`
+
+### Peças (`/pecas`)
+
+- `POST /pecas`
+  - Request: `{ "nome": "...", "preco": 50.0, "estoque": 10 }`
+  - Respostas: `200`/`400`.
+
+- `PATCH /pecas/:id/estoque`
+  - Request: `{ "delta": -1 }`
+  - Respostas: `200`/`400`.
+
+- `GET /pecas/:id`
+- `GET /pecas`
+
+Padronização de erro (estado atual):
+
+- Exceções de validação e regra de domínio são mapeadas principalmente para `400`.
+- Recursos inexistentes são mapeados para `404`.
+- A padronização de envelope de erro ficará na evolução do ADR-010.
 
 ## 5.2 Swagger / OpenAPI
 
-- TODO: instruções para geração de documentação OpenAPI (ex.: decorators NestJS + `@nestjs/swagger`).
-- Espaço para link: TODO — inserir link para Swagger UI ou arquivo `openapi.yaml`.
+Implementação concluída:
+
+- Dependências instaladas:
+  - `@nestjs/swagger`
+  - `swagger-ui-express`
+- Bootstrap configurado em `src/main.ts` com `DocumentBuilder` e `SwaggerModule`.
+- Endpoints publicados:
+  - UI interativa: `/docs`
+  - JSON OpenAPI: `/docs-json`
+
+Como validar funcionamento:
+
+1. Subir a aplicação:
+  ```bash
+  npm run start:dev
+  ```
+2. Abrir a UI do Swagger no navegador:
+  - `http://localhost:3000/docs`
+3. Validar se o JSON OpenAPI está acessível:
+  - `http://localhost:3000/docs-json`
+4. Confirmar que os controllers principais aparecem na documentação:
+  - `/os`, `/clientes`, `/veiculos`, `/servicos`, `/pecas`
+
+Observações importantes:
+
+- Os endpoints já utilizam DTOs específicos para request body, com propriedades documentadas via `@ApiProperty`.
+- Controllers principais estão decorados com `@ApiTags`, `@ApiOperation`, `@ApiBody` e `@ApiResponse` para melhorar descrição de operações e respostas.
+- Evolução recomendada: adotar validação automática com `class-validator` + `ValidationPipe` e enriquecer schemas de resposta tipando DTOs de saída.
 
 ---
 
 # 6. Segurança
 
-- Autenticação recomendada: JWT
-  - TODO: justificar escolha e documentar fluxo (login, refresh tokens, roles).
-- Validação de dados: DTOs, pipes de validação (ex.: `class-validator`).
-- Exposição mínima de dados: aplicar DTOs de saída (sem expor campos sensíveis).
+Estado atual (MVP):
 
-TODO: seção para políticas de segurança, checklist de configuração de secrets, HTTPS, CORS, rate limiting.
+- Sem autenticação/autorização ativa nos endpoints.
+- Validação de entrada implementada de forma pontual nos controllers/use-cases.
+- Persistência em memória (sem dados sensíveis persistidos em disco pela aplicação).
+
+Estratégia alvo (pós-MVP):
+
+- Autenticação: JWT (access token + refresh token).
+- Autorização: RBAC por perfil operacional.
+- Hardening de API:
+  - CORS restrito por ambiente.
+  - Rate limiting por IP/cliente.
+  - Segredos via variáveis de ambiente e cofre/CI.
+  - Uso obrigatório de HTTPS em ambientes não-locais.
+
+Checklist de segurança para entrega técnica:
+
+- [ ] Definir claims e tempo de expiração de tokens.
+- [ ] Definir matriz de permissões por endpoint.
+- [ ] Definir política de rotação de secrets.
+- [ ] Padronizar resposta de erro sem vazamento de detalhes internos.
 
 ---
 
 # 7. Testes
 
-- Estratégia:
-  - Unit tests: domínio e use-cases.
-  - Integration tests: controllers + repositorios.
-  - E2E tests: fluxo completo (ex.: `test/workflow.e2e-spec.ts`).
+Estratégia adotada:
 
-- Ferramentas sugeridas: Jest, Supertest para E2E.
-- Cobertura: meta 80% — se não for atingida, justificar analiticamente.
+- Unit tests: regras de domínio e casos de uso.
+- E2E tests: fluxos HTTP críticos.
+- Integração: parcialmente coberta pelos testes E2E devido à persistência in-memory.
 
-TODO: preencher matrix de testes (lista de casos prioritários) e comandos para rodar.
+Artefatos atuais:
+
+- `test/app.e2e-spec.ts`
+- `test/workflow.e2e-spec.ts`
+
+Comandos oficiais (package.json):
+
+- `npm run test`
+- `npm run test:watch`
+- `npm run test:cov`
+- `npm run test:e2e`
+
+Ferramentas:
+
+- Jest
+- Supertest
+
+Meta e quality gate sugeridos para evolução:
+
+- Cobertura mínima: `>= 80%` em domínio + use-cases.
+- Gate de CI:
+  - build
+  - lint
+  - test
+  - test:e2e
+
+Matriz mínima de cenários críticos:
+
+- Criação de OS com referência válida/inválida de cliente/veículo.
+- Transições válidas e inválidas de status.
+- Geração/aprovação de orçamento.
+- Ajuste de estoque de peça com delta positivo/negativo.
+- Busca de recursos inexistentes (`404`).
 
 ---
 
@@ -619,64 +789,32 @@ TODO: preencher matrix de testes (lista de casos prioritários) e comandos para 
 
 ## 8.1 Dockerfile
 
-Exemplo de `Dockerfile` para construir a API (Node + NestJS). Ajustar `NODE_ENV`, versão do Node e scripts conforme `package.json`.
+Estado atual:
 
-```dockerfile
-# Stage 1 — build
-FROM node:18-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
+- O repositório ainda não possui arquivo `Dockerfile` versionado.
 
-# Stage 2 — runtime
-FROM node:18-alpine
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=build /app/dist ./dist
-COPY package*.json ./
-RUN npm ci --only=production
-EXPOSE 3000
-CMD ["node", "dist/main.js"]
-```
+Decisão para próxima fase:
 
-Notas:
-- Em desenvolvimento local pode-se usar `npm run start:dev` sem Docker.
-- Para usar variáveis de ambiente sensíveis, usar secrets/CSVs no CI ou `docker secrets` em produção.
+- Publicar `Dockerfile` multi-stage para build e runtime com Node LTS.
+- Separar configuração por ambiente (`development`, `staging`, `production`).
 
 ## 8.2 docker-compose
 
-Exemplo `docker-compose.yml` com a API e um Postgres opcional (ajustar se optar por DB):
+Estado atual:
 
-```yaml
-version: '3.8'
-services:
-  api:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/oficina
-    depends_on:
-      - db
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=oficina
-    volumes:
-      - db-data:/var/lib/postgresql/data
+- O repositório ainda não possui `docker-compose.yml` versionado.
 
-volumes:
-  db-data:
-```
+Diretriz para evolução:
+
+- Incluir `docker-compose.yml` com:
+  - serviço `api`
+  - serviço de banco (após migração de persistência)
+  - variáveis por arquivo `.env`
+  - volume persistente para banco
 
 ## 8.3 Execução local
 
-Comandos mínimos (exemplo):
+Comandos válidos para o estado atual do projeto:
 
 ```bash
 npm install
@@ -684,22 +822,10 @@ npm run build
 npm run start:dev
 ```
 
-Para executar com Docker Compose:
+Observações:
 
-```bash
-docker compose up --build
-# ou (Windows cmd):
-# docker-compose up --build
-```
-
-Para rodar apenas a API em container:
-
-```bash
-docker build -t oficina-api .
-docker run -p 3000:3000 --env NODE_ENV=production oficina-api
-```
-
-TODO: substituir `DATABASE_URL` e secrets por valores do ambiente/CI.
+- `npm run start:prod` depende de build prévio em `dist`.
+- A execução com Docker está planejada, mas depende da publicação dos artefatos de infraestrutura (Dockerfile e compose).
 
 ---
 
