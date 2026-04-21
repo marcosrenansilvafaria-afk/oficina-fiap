@@ -132,7 +132,9 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 
 ### 2.2.5 Deploy
 
-- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproduzível.
+- Aplicação containerizada com Docker (`Dockerfile`) e orquestração local via `docker-compose.yml`.
+- Escopo de infraestrutura no MVP: apenas serviço da API.
+- Justificativa da ausência de banco no compose: persistência em memória adotada no MVP.
 
 ---
 
@@ -847,26 +849,27 @@ Matriz mínima de cenários críticos:
 
 Estado atual:
 
-- O repositório ainda não possui arquivo `Dockerfile` versionado.
+- O repositório possui `Dockerfile` funcional para build e execução da API NestJS.
 
-Decisão para próxima fase:
+Características implementadas:
 
-- Publicar `Dockerfile` multi-stage para build e runtime com Node LTS.
-- Separar configuração por ambiente (`development`, `staging`, `production`).
+- Build da aplicação com `npm run build`.
+- Runtime via `node dist/main.js`.
+- Exposição da porta `3000`.
+- Uso de imagem Node LTS baseada em Alpine.
 
 ## 8.2 docker-compose
 
 Estado atual:
 
-- O repositório ainda não possui `docker-compose.yml` versionado.
+- O repositório possui `docker-compose.yml` versionado com um único serviço (`api`).
 
-Diretriz para evolução:
+Configuração atual:
 
-- Incluir `docker-compose.yml` com:
-  - serviço `api`
-  - serviço de banco (após migração de persistência)
-  - variáveis por arquivo `.env`
-  - volume persistente para banco
+- Serviço `api` construído a partir do `Dockerfile` local.
+- Mapeamento de portas `3000:3000`.
+- Política de reinício `restart: always`.
+- Comentário de evolução para futura inclusão de PostgreSQL (não implementado no MVP).
 
 ## 8.3 Execução local
 
@@ -876,12 +879,14 @@ Comandos válidos para o estado atual do projeto:
 npm install
 npm run build
 npm run start:dev
+docker-compose up --build
 ```
 
 Observações:
 
 - `npm run start:prod` depende de build prévio em `dist`.
-- A execução com Docker está planejada, mas depende da publicação dos artefatos de infraestrutura (Dockerfile e compose).
+- A API pode ser executada em container via Docker Compose em `http://localhost:3000`.
+- Persistência em memória é mantida no container por decisão de escopo do MVP.
 
 ---
 

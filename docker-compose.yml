@@ -1,0 +1,10 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: always
+
+# Futuro: incluir serviço PostgreSQL quando a persistência deixar de ser in-memory.
