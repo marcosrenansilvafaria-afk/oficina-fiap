@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,14 +15,18 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarVeiculo } from '../../application/use-cases/criar-veiculo';
 import { BuscarVeiculo } from '../../application/use-cases/buscar-veiculo';
 import { veiculoRepo } from '../../infraestructure/singletons';
 import { CriarVeiculoDto } from './dto/veiculo.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('veiculos')
 @ApiTags('veiculos')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard)
 export class VeiculoController {
   private criarVeiculo = new CriarVeiculo(veiculoRepo);
   private buscarVeiculo = new BuscarVeiculo();

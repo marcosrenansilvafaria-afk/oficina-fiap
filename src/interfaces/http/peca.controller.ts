@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -15,6 +16,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarPeca } from '../../application/use-cases/criar-peca';
 import { BuscarPeca } from '../../application/use-cases/buscar-peca';
@@ -22,9 +24,12 @@ import { ListarPeca } from '../../application/use-cases/listar-peca';
 import { AjustarEstoquePeca } from '../../application/use-cases/ajustar-estoque-peca';
 import { pecaRepo } from '../../infraestructure/singletons';
 import { AjustarEstoquePecaDto, CriarPecaDto } from './dto/peca.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('pecas')
 @ApiTags('pecas')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard)
 export class PecaController {
   private criarPeca = new CriarPeca(pecaRepo);
   private buscarPeca = new BuscarPeca();

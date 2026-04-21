@@ -10,13 +10,15 @@ Person(atendente, "Atendente", "Cria e gerencia ordem de servico")
 Person(mecanico, "Mecanico", "Executa servicos da ordem")
 
 System(sistema, "Sistema Oficina (Backend API)", "Gerencia OS, clientes, veiculos, pecas e servicos")
+System_Ext(secretEnv, "Ambiente (.env)", "JWT_SECRET para assinatura dos tokens")
 
 System_Ext(notificacao, "Servico de Notificacao", "Integracao futura para envio de mensagens")
 System_Ext(pagamento, "Gateway de Pagamento", "Integracao futura para pagamentos")
 
-Rel(cliente, sistema, "Consulta status e aprova orcamento", "HTTP/REST")
-Rel(atendente, sistema, "Cria e gerencia OS", "HTTP/REST")
-Rel(mecanico, sistema, "Atualiza execucao", "HTTP/REST")
+Rel(cliente, sistema, "Consulta status e aprova orcamento", "HTTP/REST (JWT quando protegido)")
+Rel(atendente, sistema, "Cria e gerencia OS", "HTTP/REST + Login JWT")
+Rel(mecanico, sistema, "Atualiza execucao", "HTTP/REST + Login JWT")
+Rel(sistema, secretEnv, "Le JWT_SECRET", "dotenv")
 
 Rel(sistema, notificacao, "Envia notificacoes", "Async (futuro)")
 Rel(sistema, pagamento, "Processa pagamentos", "HTTP (futuro)")

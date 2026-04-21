@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,6 +15,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarOrdemServico } from '../../application/use-cases/criar-ordem-servico';
 import { AdicionarItemOrdemServico } from '../../application/use-cases/adicionar-item-ordem-servico';
@@ -23,8 +25,6 @@ import { IniciarExecucao } from '../../application/use-cases/iniciar-execucao';
 import { IniciarDiagnostico } from '../../application/use-cases/iniciar-diagnostico';
 import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ordem-servico';
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
-import { OrdemServico } from '../../domain/entities/ordem-servico';
-import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
 import {
   clienteRepo,
   veiculoRepo,
@@ -32,12 +32,14 @@ import {
   pecaRepo,
   servicoRepo,
 } from '../../infraestructure/singletons';
-import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
-import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
 import {
   AdicionarItemOrdemServicoDto,
   CriarOrdemServicoDto,
 } from './dto/ordem-servico.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
+import { Role } from '../../auth/roles.enum';
 
 @Controller('os')
 @ApiTags('ordens-servico')
@@ -57,12 +59,13 @@ export class OrdemServicoController {
 
   // using shared singleton repo
   private repo = ordemRepo;
-  private pecaRepo = pecaRepo;
-  private servicoRepo = servicoRepo;
 
   @ApiOperation({ summary: 'Criar ordem de servico' })
   @ApiBody({ type: CriarOrdemServicoDto })
   @ApiOkResponse({ description: 'OS criada com sucesso' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post()
   criar(@Body() body: CriarOrdemServicoDto) {
     // accept optional clienteId and veiculoId in body
@@ -91,6 +94,9 @@ export class OrdemServicoController {
   @ApiBody({ type: AdicionarItemOrdemServicoDto })
   @ApiOkResponse({ description: 'Item adicionado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/item')
   adicionar(
     @Param('id') id: string,
@@ -114,6 +120,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Orcamento gerado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/orcamento')
   gerar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -131,6 +140,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Diagnostico iniciado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MECANICO)
   @Post(':id/diagnostico')
   diagnostico(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -148,6 +160,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Orcamento aprovado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/aprovar')
   aprovar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -165,6 +180,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Execucao iniciada com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MECANICO)
   @Post(':id/executar')
   executar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -182,6 +200,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'OS finalizada com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MECANICO)
   @Post(':id/finalizar')
   finalizar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -199,6 +220,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Veiculo entregue com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/entregar')
   entregar(@Param('id') id: string) {
     const os = this.repo.getById(id);

@@ -4,9 +4,10 @@ import { ClienteController } from './interfaces/http/cliente.controller';
 import { VeiculoController } from './interfaces/http/veiculo.controller';
 import { ServicoController } from './interfaces/http/servico.controller';
 import { PecaController } from './interfaces/http/peca.controller';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [],
+  imports: [AuthModule],
   controllers: [
     OrdemServicoController,
     ClienteController,

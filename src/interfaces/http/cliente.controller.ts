@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,14 +15,18 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarCliente } from '../../application/use-cases/criar-cliente';
 import { BuscarCliente } from '../../application/use-cases/buscar-cliente';
 import { clienteRepo } from '../../infraestructure/singletons';
 import { CriarClienteDto } from './dto/cliente.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('clientes')
 @ApiTags('clientes')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard)
 export class ClienteController {
   private criarCliente = new CriarCliente(clienteRepo);
   private buscarCliente = new BuscarCliente();

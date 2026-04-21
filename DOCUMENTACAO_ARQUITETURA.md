@@ -42,10 +42,12 @@ Critérios de sucesso do MVP:
 
 Fora do escopo (MVP):
 
-- Autenticação completa (JWT avançado)
+- Autenticação JWT avançada (refresh token, revogação e rotação)
 - Persistência em banco de dados (produção)
 - Monitoramento avançado (tempo médio e KPIs complexos)
 - Controle avançado de estoque
+
+Observação de escopo: autenticação JWT foi implementada de forma simplificada no MVP (access token).
 
 ---
 
@@ -115,7 +117,9 @@ Fora do escopo (MVP):
 
 - Validação de entrada: campos obrigatórios, formato de documento (CPF/CNPJ), placa e tipos de item da OS.
 - Validação de regra: transições de estado e pré-condições da OS são validadas no domínio.
-- Autenticação/autorização: JWT e RBAC não implementados no MVP por decisão de escopo; adoção prevista para fase posterior.
+- Autenticação/autorização: JWT (access token) e RBAC básico implementados no MVP.
+- Política de token: payload mínimo (`sub`, `role`) e expiração padrão de 1h.
+- Sem refresh token no MVP: decisão intencional para reduzir complexidade inicial em ambiente controlado.
 - Tratamento de erro: padronização de erros de validação e regra de negócio deve ser aplicada na camada HTTP (plano de evolução).
 
 ### 2.2.3 Performance
@@ -393,6 +397,7 @@ Diagramas de arquitetura (C4) atualmente documentados:
 - C1 (Contexto): `docs/image/C1_Oficina_Context.png`
 - C2 (Containers): `docs/image/C2_Oficina_Container.png`
 - C3 (Componentes): `docs/image/C3_Oficina_Component.png`
+- Fluxo de autenticação (sequência): `docs/image/fluxoAutenticacao.png`
 
 Observação: o nível C4 (código) será elaborado em etapa posterior por ser mais orientado a desenvolvedores e depender da estabilização final dos módulos internos.
 
@@ -429,6 +434,14 @@ Justificativa de modelagem: no diagrama C2, a persistência atual é representad
 
 - Nível não documentado nesta etapa.
 - Justificativa: o diagrama de código é direcionado principalmente ao time de desenvolvimento e será produzido após estabilização da estrutura interna de módulos, interfaces e contratos.
+
+### 4.2.5 Fluxo de autenticação JWT (sequência)
+
+- Login via `POST /auth/login` retorna `access_token` com expiração de 1h.
+- Endpoints protegidos usam `Authorization: Bearer <token>`.
+- Validação ocorre com `JwtAuthGuard` + `JwtStrategy` e autorização com `RolesGuard`.
+
+![Fluxo de Autenticacao JWT](docs/image/fluxoAutenticacao.png)
 
 ## 4.3 Low Level Design (LLD)
 
@@ -517,13 +530,15 @@ Este projeto registra decisões arquiteturais importantes como ADRs (Architectur
   - Consequências negativas: aumento de complexidade de infraestrutura, migração de dados e testes de integração.
 
 - **ADR-007 — Estratégia de autenticação e autorização (JWT + RBAC)**
-  - Status: Proposto
+  - Status: Aceito
   - Data: 2026-04-18
   - Contexto: endpoints administrativos e operacionais exigirão controle de acesso por perfil.
   - Decisão: adotar JWT para autenticação stateless e RBAC para autorização por papel.
+  - Implementação no MVP: `POST /auth/login` com usuário mock in-memory, access token com expiração de 1h e payload mínimo (`sub`, `role`).
+  - Escopo da implementação MVP: sem refresh token e sem persistência de usuários, mantendo simplicidade operacional inicial.
   - Alternativas consideradas: autenticação por sessão; API key única para todos os perfis.
   - Consequências positivas: controle granular de acesso e integração simples com APIs.
-  - Consequências negativas: gestão de ciclo de token e necessidade de política de refresh/revogação.
+  - Consequências negativas: gestão de ciclo de token fica parcial no MVP (refresh/revogação planejados para evolução).
 
 - **ADR-008 — Estratégia de testes e quality gate**
   - Status: Proposto
@@ -718,13 +733,31 @@ Observações importantes:
 
 Estado atual (MVP):
 
-- Sem autenticação/autorização ativa nos endpoints.
+- Autenticação JWT ativa no endpoint `POST /auth/login` e nos endpoints administrativos protegidos.
+- Autorização RBAC básica por perfil (`ADMIN`, `MECANICO`, `ATENDENTE`) aplicada na camada HTTP com guards.
 - Validação de entrada implementada de forma pontual nos controllers/use-cases.
 - Persistência em memória (sem dados sensíveis persistidos em disco pela aplicação).
 
+Fluxo de autenticação implementado:
+
+1. Cliente envia `email` e `senha` para `POST /auth/login`.
+2. A API valida o usuário mock in-memory do MVP.
+3. A API retorna `{ access_token }` JWT com claims mínimas (`sub`, `role`) e expiração de 1h.
+4. Em endpoints protegidos, o cliente envia `Authorization: Bearer <token>`.
+
+Matriz RBAC implementada no fluxo de OS:
+
+- `POST /os`, `POST /os/:id/item`, `POST /os/:id/orcamento`, `POST /os/:id/aprovar`, `POST /os/:id/entregar` → `ATENDENTE`
+- `POST /os/:id/diagnostico`, `POST /os/:id/executar`, `POST /os/:id/finalizar` → `MECANICO`
+- `ADMIN` → acesso total aos endpoints protegidos.
+
+Endpoints públicos no MVP:
+
+- `GET /os` e `GET /os/:id` permanecem públicos, pois o MVP assume ambiente controlado para validação rápida do fluxo operacional.
+
 Estratégia alvo (pós-MVP):
 
-- Autenticação: JWT (access token + refresh token).
+- Autenticação: evoluir para JWT com access token + refresh token.
 - Autorização: RBAC por perfil operacional.
 - Hardening de API:
   - CORS restrito por ambiente.
@@ -971,11 +1004,11 @@ Referências locais já presentes no repositório:
 # 13. Considerações Finais
 
 - **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
-- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), JWT não implementado no MVP, cobertura de testes parcial e monitoramento simplificado.
+- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), autenticação sem refresh token no MVP, cobertura de testes parcial e monitoramento simplificado.
 - **Próximos passos:**
   1. Evoluir documentação de contrato com DTOs de resposta e padronização de erros no OpenAPI/Swagger.
   2. Implementar persistência em DB e plano de migração.
-  3. Implementar autenticação/autorizações (JWT) para endpoints administrativos.
+  3. Evoluir segurança com refresh token, revogação e política de rotação de segredo.
   4. Expandir testes unitários e integração para atingir meta de cobertura.
 
 ---
