@@ -29,4 +29,9 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  const message =
+    error instanceof Error ? error.message : 'Erro desconhecido ao iniciar API';
+  console.error(message);
+  process.exit(1);
+});

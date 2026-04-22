@@ -1,4 +1,3 @@
-import { OrdemServico } from '../../domain/entities/ordem-servico';
 import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
 
 export class FinalizarOrdemServico {

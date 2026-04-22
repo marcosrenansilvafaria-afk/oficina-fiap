@@ -40,6 +40,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
 import { Role } from '../../auth/roles.enum';
+import { getErrorMessage } from './error-message';
 
 @Controller('os')
 @ApiTags('ordens-servico')
@@ -119,8 +120,8 @@ export class OrdemServicoController {
     try {
       const result = this.adicionarItem.execute(id, body);
       return result;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -142,8 +143,8 @@ export class OrdemServicoController {
         this.envioOrcamento.set(id, { status: 'NAO_ENVIADO' });
       }
       return result;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -192,8 +193,8 @@ export class OrdemServicoController {
     try {
       const result = this.iniciarDiagnostico.execute(id);
       return result;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -212,8 +213,8 @@ export class OrdemServicoController {
     try {
       const result = this.aprovarOrcamento.execute(id);
       return result;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -233,8 +234,8 @@ export class OrdemServicoController {
       const result = this.iniciarExecucao.execute(id);
       this.execucaoIniciadaEm.set(id, Date.now());
       return result;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -267,8 +268,8 @@ export class OrdemServicoController {
         ...result,
         tempoExecucaoMs,
       };
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -302,8 +303,8 @@ export class OrdemServicoController {
     try {
       const result = this.entregarVeiculo.execute(id);
       return result;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
