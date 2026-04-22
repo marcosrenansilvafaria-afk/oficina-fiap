@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,18 +15,39 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarVeiculo } from '../../application/use-cases/criar-veiculo';
 import { BuscarVeiculo } from '../../application/use-cases/buscar-veiculo';
 import { veiculoRepo } from '../../infraestructure/singletons';
 import { CriarVeiculoDto } from './dto/veiculo.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('veiculos')
 @ApiTags('veiculos')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard)
 export class VeiculoController {
   private criarVeiculo = new CriarVeiculo(veiculoRepo);
   private buscarVeiculo = new BuscarVeiculo();
   private repo = veiculoRepo;
+
+  private validarPlaca(placa: string) {
+    const placaNormalizada = String(placa || '')
+      .trim()
+      .toUpperCase();
+    const padraoMercosul = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+    const padraoAntigo = /^[A-Z]{3}-?[0-9]{4}$/;
+
+    if (
+      !padraoMercosul.test(placaNormalizada) &&
+      !padraoAntigo.test(placaNormalizada)
+    ) {
+      throw new BadRequestException('placa inválida');
+    }
+
+    return placaNormalizada;
+  }
 
   @ApiOperation({ summary: 'Criar veiculo' })
   @ApiBody({ type: CriarVeiculoDto })
@@ -39,8 +61,9 @@ export class VeiculoController {
     }
 
     try {
+      const placa = this.validarPlaca(body.placa);
       const veiculo = this.criarVeiculo.execute({
-        placa: body.placa,
+        placa,
         modelo: body.modelo,
         marca: body.marca,
         ano: Number(body.ano),

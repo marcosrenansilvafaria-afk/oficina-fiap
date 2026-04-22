@@ -11,8 +11,8 @@ export class CriarCliente {
     // normalize documento: digits only
     const documento = String(input.documento).replace(/\D/g, '');
 
-    if (documento.length !== 11) {
-      throw new Error('documento inválido (esperado 11 dígitos)');
+    if (documento.length !== 11 && documento.length !== 14) {
+      throw new Error('documento inválido (esperado CPF/CNPJ)');
     }
 
     // business rule: no duplicate documento

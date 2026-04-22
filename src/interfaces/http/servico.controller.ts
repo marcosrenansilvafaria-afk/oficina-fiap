@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,15 +15,19 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarServico } from '../../application/use-cases/criar-servico';
 import { BuscarServico } from '../../application/use-cases/buscar-servico';
 import { ListarServico } from '../../application/use-cases/listar-servico';
 import { servicoRepo } from '../../infraestructure/singletons';
 import { CriarServicoDto } from './dto/servico.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('servicos')
 @ApiTags('servicos')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard)
 export class ServicoController {
   private criarServico = new CriarServico(servicoRepo);
   private buscarServico = new BuscarServico();

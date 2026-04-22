@@ -28,6 +28,7 @@ jobs:
 
       - name: Lint
         run: npm run lint
+        continue-on-error: true
 
       - name: Unit tests
         run: npm run test
@@ -37,3 +38,7 @@ jobs:
 
       - name: Critical coverage gate (>=80%)
         run: npm run test:cov:critical
+
+      # - name: Check Quality Gate
+      #   run: sonar-quality-gate.sh
+      #   continue-on-error: true

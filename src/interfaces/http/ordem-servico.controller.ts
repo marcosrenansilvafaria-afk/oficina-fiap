@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,6 +15,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarOrdemServico } from '../../application/use-cases/criar-ordem-servico';
 import { AdicionarItemOrdemServico } from '../../application/use-cases/adicionar-item-ordem-servico';
@@ -23,8 +25,6 @@ import { IniciarExecucao } from '../../application/use-cases/iniciar-execucao';
 import { IniciarDiagnostico } from '../../application/use-cases/iniciar-diagnostico';
 import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ordem-servico';
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
-import { OrdemServico } from '../../domain/entities/ordem-servico';
-import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
 import {
   clienteRepo,
   veiculoRepo,
@@ -32,12 +32,14 @@ import {
   pecaRepo,
   servicoRepo,
 } from '../../infraestructure/singletons';
-import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
-import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
 import {
   AdicionarItemOrdemServicoDto,
   CriarOrdemServicoDto,
 } from './dto/ordem-servico.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
+import { Role } from '../../auth/roles.enum';
 
 @Controller('os')
 @ApiTags('ordens-servico')
@@ -57,12 +59,21 @@ export class OrdemServicoController {
 
   // using shared singleton repo
   private repo = ordemRepo;
-  private pecaRepo = pecaRepo;
-  private servicoRepo = servicoRepo;
+  private envioOrcamento = new Map<
+    string,
+    { status: 'NAO_ENVIADO' | 'ENVIADO'; enviadoEm?: string }
+  >();
+  private execucaoIniciadaEm = new Map<string, number>();
+  private execucaoConcluidaMs = new Map<string, number>();
+  private totalExecucoesConcluidas = 0;
+  private totalTempoExecucaoMs = 0;
 
   @ApiOperation({ summary: 'Criar ordem de servico' })
   @ApiBody({ type: CriarOrdemServicoDto })
   @ApiOkResponse({ description: 'OS criada com sucesso' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post()
   criar(@Body() body: CriarOrdemServicoDto) {
     // accept optional clienteId and veiculoId in body
@@ -91,6 +102,9 @@ export class OrdemServicoController {
   @ApiBody({ type: AdicionarItemOrdemServicoDto })
   @ApiOkResponse({ description: 'Item adicionado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/item')
   adicionar(
     @Param('id') id: string,
@@ -114,6 +128,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Orcamento gerado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/orcamento')
   gerar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -121,16 +138,52 @@ export class OrdemServicoController {
 
     try {
       const result = this.gerarOrcamento.execute(id);
+      if (!this.envioOrcamento.has(id)) {
+        this.envioOrcamento.set(id, { status: 'NAO_ENVIADO' });
+      }
       return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
   }
 
+  @ApiOperation({ summary: 'Simular envio de orcamento ao cliente' })
+  @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
+  @ApiOkResponse({ description: 'Orcamento marcado como enviado' })
+  @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
+  @Post(':id/enviar-orcamento')
+  enviarOrcamento(@Param('id') id: string) {
+    const os = this.repo.getById(id);
+    if (!os) throw new NotFoundException('OS não encontrada');
+
+    if (os.getStatus() !== 'AGUARDANDO_APROVACAO') {
+      throw new BadRequestException(
+        'Só é possível enviar orçamento quando a OS está em AGUARDANDO_APROVACAO',
+      );
+    }
+
+    const envio = {
+      status: 'ENVIADO' as const,
+      enviadoEm: new Date().toISOString(),
+    };
+    this.envioOrcamento.set(id, envio);
+
+    return {
+      ordemServicoId: id,
+      ...envio,
+    };
+  }
+
   @ApiOperation({ summary: 'Iniciar diagnostico da OS' })
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Diagnostico iniciado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MECANICO)
   @Post(':id/diagnostico')
   diagnostico(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -148,6 +201,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Orcamento aprovado com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/aprovar')
   aprovar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -165,6 +221,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Execucao iniciada com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MECANICO)
   @Post(':id/executar')
   executar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -172,6 +231,7 @@ export class OrdemServicoController {
 
     try {
       const result = this.iniciarExecucao.execute(id);
+      this.execucaoIniciadaEm.set(id, Date.now());
       return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
@@ -182,6 +242,9 @@ export class OrdemServicoController {
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'OS finalizada com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MECANICO)
   @Post(':id/finalizar')
   finalizar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -189,16 +252,48 @@ export class OrdemServicoController {
 
     try {
       const result = this.finalizarOrdem.execute(id);
-      return result;
+      const inicioExecucao = this.execucaoIniciadaEm.get(id);
+      let tempoExecucaoMs: number | null = null;
+
+      if (inicioExecucao) {
+        tempoExecucaoMs = Date.now() - inicioExecucao;
+        this.execucaoConcluidaMs.set(id, tempoExecucaoMs);
+        this.totalExecucoesConcluidas += 1;
+        this.totalTempoExecucaoMs += tempoExecucaoMs;
+        this.execucaoIniciadaEm.delete(id);
+      }
+
+      return {
+        ...result,
+        tempoExecucaoMs,
+      };
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
+  }
+
+  @ApiOperation({ summary: 'Consultar tempo medio de execucao das OS' })
+  @ApiOkResponse({ description: 'Métricas simples de tempo de execução' })
+  @Get('tempo-medio')
+  tempoMedio() {
+    const tempoMedioExecucaoMs =
+      this.totalExecucoesConcluidas === 0
+        ? 0
+        : Math.round(this.totalTempoExecucaoMs / this.totalExecucoesConcluidas);
+
+    return {
+      totalExecucoesConcluidas: this.totalExecucoesConcluidas,
+      tempoMedioExecucaoMs,
+    };
   }
 
   @ApiOperation({ summary: 'Entregar veiculo da OS' })
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiOkResponse({ description: 'Veiculo entregue com sucesso' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
   @Post(':id/entregar')
   entregar(@Param('id') id: string) {
     const os = this.repo.getById(id);
@@ -220,13 +315,23 @@ export class OrdemServicoController {
   buscar(@Param('id') id: string) {
     const os = this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
-    return os;
+    return {
+      ...os,
+      envioOrcamento: this.envioOrcamento.get(id) || { status: 'NAO_ENVIADO' },
+      tempoExecucaoMs: this.execucaoConcluidaMs.get(id) ?? null,
+    };
   }
 
   @ApiOperation({ summary: 'Listar ordens de servico' })
   @ApiOkResponse({ description: 'Lista de OS retornada com sucesso' })
   @Get()
   listar() {
-    return this.repo.all();
+    return this.repo.all().map((os) => ({
+      ...os,
+      envioOrcamento: this.envioOrcamento.get(os.id) || {
+        status: 'NAO_ENVIADO',
+      },
+      tempoExecucaoMs: this.execucaoConcluidaMs.get(os.id) ?? null,
+    }));
   }
 }

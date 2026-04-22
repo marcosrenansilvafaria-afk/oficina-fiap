@@ -30,7 +30,7 @@ describe('Use-cases de cadastro', () => {
     const useCase = new CriarCliente(repo);
 
     expect(() => useCase.execute({ nome: 'Ana', documento: '123' })).toThrow(
-      'documento inválido (esperado 11 dígitos)',
+      'documento inválido (esperado CPF/CNPJ)',
     );
   });
 

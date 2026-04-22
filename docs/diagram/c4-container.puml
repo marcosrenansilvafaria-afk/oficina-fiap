@@ -15,14 +15,16 @@ System_Boundary(s1, "Sistema Oficina") {
 }
 
 ContainerDb_Ext(dbFuturo, "Banco de Dados", "PostgreSQL/NoSQL (planejado)", "Substituira os repositorios in-memory apos a fase de testes")
+System_Ext(secretEnv, "Ambiente (.env)", "JWT_SECRET para assinatura/validacao JWT")
 System_Ext(notificacao, "Servico de Notificacao", "Integracao futura")
 System_Ext(pagamento, "Gateway de Pagamento", "Integracao futura")
 
 Rel(cliente, api, "Consulta status e aprova orcamento", "HTTP/REST")
-Rel(atendente, api, "Cria e gerencia OS", "HTTP/REST")
-Rel(mecanico, api, "Atualiza execucao", "HTTP/REST")
+Rel(atendente, api, "Login e operacao autenticada", "HTTP/REST + JWT")
+Rel(mecanico, api, "Login e operacao autenticada", "HTTP/REST + JWT")
 
 Rel(api, repoMemory, "Le e escreve dados", "Repository pattern")
+Rel(api, secretEnv, "Le JWT_SECRET", "dotenv")
 Rel(api, dbFuturo, "Migracao planejada apos fase de testes", "JDBC/ORM (futuro)")
 Rel(api, notificacao, "Envia notificacoes", "Async (futuro)")
 Rel(api, pagamento, "Processa pagamentos", "HTTP (futuro)")

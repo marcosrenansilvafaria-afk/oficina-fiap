@@ -42,10 +42,12 @@ Critérios de sucesso do MVP:
 
 Fora do escopo (MVP):
 
-- Autenticação completa (JWT avançado)
+- Autenticação JWT avançada (refresh token, revogação e rotação)
 - Persistência em banco de dados (produção)
 - Monitoramento avançado (tempo médio e KPIs complexos)
 - Controle avançado de estoque
+
+Observação de escopo: autenticação JWT foi implementada de forma simplificada no MVP (access token).
 
 ---
 
@@ -115,7 +117,9 @@ Fora do escopo (MVP):
 
 - Validação de entrada: campos obrigatórios, formato de documento (CPF/CNPJ), placa e tipos de item da OS.
 - Validação de regra: transições de estado e pré-condições da OS são validadas no domínio.
-- Autenticação/autorização: JWT e RBAC não implementados no MVP por decisão de escopo; adoção prevista para fase posterior.
+- Autenticação/autorização: JWT (access token) e RBAC básico implementados no MVP.
+- Política de token: payload mínimo (`sub`, `role`) e expiração padrão de 1h.
+- Sem refresh token no MVP: decisão intencional para reduzir complexidade inicial em ambiente controlado.
 - Tratamento de erro: padronização de erros de validação e regra de negócio deve ser aplicada na camada HTTP (plano de evolução).
 
 ### 2.2.3 Performance
@@ -128,7 +132,9 @@ Fora do escopo (MVP):
 
 ### 2.2.5 Deploy
 
-- Containerização básica (Docker) prevista; configuração deve ser adicionada para deploy reproduzível.
+- Aplicação containerizada com Docker (`Dockerfile`) e orquestração local via `docker-compose.yml`.
+- Escopo de infraestrutura no MVP: apenas serviço da API.
+- Justificativa da ausência de banco no compose: persistência em memória adotada no MVP.
 
 ---
 
@@ -393,6 +399,7 @@ Diagramas de arquitetura (C4) atualmente documentados:
 - C1 (Contexto): `docs/image/C1_Oficina_Context.png`
 - C2 (Containers): `docs/image/C2_Oficina_Container.png`
 - C3 (Componentes): `docs/image/C3_Oficina_Component.png`
+- Fluxo de autenticação (sequência): `docs/image/fluxoAutenticacao.png`
 
 Observação: o nível C4 (código) será elaborado em etapa posterior por ser mais orientado a desenvolvedores e depender da estabilização final dos módulos internos.
 
@@ -430,6 +437,14 @@ Justificativa de modelagem: no diagrama C2, a persistência atual é representad
 - Nível não documentado nesta etapa.
 - Justificativa: o diagrama de código é direcionado principalmente ao time de desenvolvimento e será produzido após estabilização da estrutura interna de módulos, interfaces e contratos.
 
+### 4.2.5 Fluxo de autenticação JWT (sequência)
+
+- Login via `POST /auth/login` retorna `access_token` com expiração de 1h.
+- Endpoints protegidos usam `Authorization: Bearer <token>`.
+- Validação ocorre com `JwtAuthGuard` + `JwtStrategy` e autorização com `RolesGuard`.
+
+![Fluxo de Autenticacao JWT](docs/image/fluxoAutenticacao.png)
+
 ## 4.3 Low Level Design (LLD)
 
 - Estrutura de código (exemplo):
@@ -457,7 +472,7 @@ Aderência arquitetural e lacunas atuais:
 
 ## 4.4 Decisões Arquiteturais (ADR)
 
-Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). Abaixo há ADRs já tomadas e um modelo para novos registros.
+Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). As ADRs foram organizadas em arquivos individuais no diretório `docs/adr/`, com associação textual simples a PRs simulados (ex.: `Relacionado ao PR #simulado-01`).
 
 ### ADRs registradas
 
@@ -517,13 +532,15 @@ Este projeto registra decisões arquiteturais importantes como ADRs (Architectur
   - Consequências negativas: aumento de complexidade de infraestrutura, migração de dados e testes de integração.
 
 - **ADR-007 — Estratégia de autenticação e autorização (JWT + RBAC)**
-  - Status: Proposto
+  - Status: Aceito
   - Data: 2026-04-18
   - Contexto: endpoints administrativos e operacionais exigirão controle de acesso por perfil.
   - Decisão: adotar JWT para autenticação stateless e RBAC para autorização por papel.
+  - Implementação no MVP: `POST /auth/login` com usuário mock in-memory, access token com expiração de 1h e payload mínimo (`sub`, `role`).
+  - Escopo da implementação MVP: sem refresh token e sem persistência de usuários, mantendo simplicidade operacional inicial.
   - Alternativas consideradas: autenticação por sessão; API key única para todos os perfis.
   - Consequências positivas: controle granular de acesso e integração simples com APIs.
-  - Consequências negativas: gestão de ciclo de token e necessidade de política de refresh/revogação.
+  - Consequências negativas: gestão de ciclo de token fica parcial no MVP (refresh/revogação planejados para evolução).
 
 - **ADR-008 — Estratégia de testes e quality gate**
   - Status: Proposto
@@ -576,6 +593,8 @@ Follow-up Actions:
 
 Salvar ADRs em `docs/adr/ADR-XXX.md`.
 
+Índice atual das ADRs: `docs/adr/README.md`.
+
 ---
 
 # 5. API
@@ -615,11 +634,13 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
     - `400`: violação de regra de domínio.
 
 - `POST /os/:id/orcamento`
+- `POST /os/:id/enviar-orcamento`
 - `POST /os/:id/diagnostico`
 - `POST /os/:id/aprovar`
 - `POST /os/:id/executar`
 - `POST /os/:id/finalizar`
 - `POST /os/:id/entregar`
+ - `GET /os/tempo-medio`
   - Descrição: transições do fluxo da OS.
   - Respostas comuns:
     - `200`: transição aplicada.
@@ -718,13 +739,31 @@ Observações importantes:
 
 Estado atual (MVP):
 
-- Sem autenticação/autorização ativa nos endpoints.
+- Autenticação JWT ativa no endpoint `POST /auth/login` e nos endpoints administrativos protegidos.
+- Autorização RBAC básica por perfil (`ADMIN`, `MECANICO`, `ATENDENTE`) aplicada na camada HTTP com guards.
 - Validação de entrada implementada de forma pontual nos controllers/use-cases.
 - Persistência em memória (sem dados sensíveis persistidos em disco pela aplicação).
 
+Fluxo de autenticação implementado:
+
+1. Cliente envia `email` e `senha` para `POST /auth/login`.
+2. A API valida o usuário mock in-memory do MVP.
+3. A API retorna `{ access_token }` JWT com claims mínimas (`sub`, `role`) e expiração de 1h.
+4. Em endpoints protegidos, o cliente envia `Authorization: Bearer <token>`.
+
+Matriz RBAC implementada no fluxo de OS:
+
+- `POST /os`, `POST /os/:id/item`, `POST /os/:id/orcamento`, `POST /os/:id/aprovar`, `POST /os/:id/entregar` → `ATENDENTE`
+- `POST /os/:id/diagnostico`, `POST /os/:id/executar`, `POST /os/:id/finalizar` → `MECANICO`
+- `ADMIN` → acesso total aos endpoints protegidos.
+
+Endpoints públicos no MVP:
+
+- `GET /os` e `GET /os/:id` permanecem públicos, pois o MVP assume ambiente controlado para validação rápida do fluxo operacional.
+
 Estratégia alvo (pós-MVP):
 
-- Autenticação: JWT (access token + refresh token).
+- Autenticação: evoluir para JWT com access token + refresh token.
 - Autorização: RBAC por perfil operacional.
 - Hardening de API:
   - CORS restrito por ambiente.
@@ -814,26 +853,27 @@ Matriz mínima de cenários críticos:
 
 Estado atual:
 
-- O repositório ainda não possui arquivo `Dockerfile` versionado.
+- O repositório possui `Dockerfile` funcional para build e execução da API NestJS.
 
-Decisão para próxima fase:
+Características implementadas:
 
-- Publicar `Dockerfile` multi-stage para build e runtime com Node LTS.
-- Separar configuração por ambiente (`development`, `staging`, `production`).
+- Build da aplicação com `npm run build`.
+- Runtime via `node dist/main.js`.
+- Exposição da porta `3000`.
+- Uso de imagem Node LTS baseada em Alpine.
 
 ## 8.2 docker-compose
 
 Estado atual:
 
-- O repositório ainda não possui `docker-compose.yml` versionado.
+- O repositório possui `docker-compose.yml` versionado com um único serviço (`api`).
 
-Diretriz para evolução:
+Configuração atual:
 
-- Incluir `docker-compose.yml` com:
-  - serviço `api`
-  - serviço de banco (após migração de persistência)
-  - variáveis por arquivo `.env`
-  - volume persistente para banco
+- Serviço `api` construído a partir do `Dockerfile` local.
+- Mapeamento de portas `3000:3000`.
+- Política de reinício `restart: always`.
+- Comentário de evolução para futura inclusão de PostgreSQL (não implementado no MVP).
 
 ## 8.3 Execução local
 
@@ -843,12 +883,14 @@ Comandos válidos para o estado atual do projeto:
 npm install
 npm run build
 npm run start:dev
+docker-compose up --build
 ```
 
 Observações:
 
 - `npm run start:prod` depende de build prévio em `dist`.
-- A execução com Docker está planejada, mas depende da publicação dos artefatos de infraestrutura (Dockerfile e compose).
+- A API pode ser executada em container via Docker Compose em `http://localhost:3000`.
+- Persistência em memória é mantida no container por decisão de escopo do MVP.
 
 ---
 
@@ -891,36 +933,36 @@ Critérios mínimos para aceite de PR:
 
 # 10. Análise de Vulnerabilidades
 
-Baseline atual (executado em 2026-04-18):
+Baseline do scan de dependências (executado em 2026-04-21):
 
-- `npm audit --json`: 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica) considerando todo o grafo.
-- `npm audit --omit=dev`: 3 vulnerabilidades altas em dependências de produção:
+- `npm audit --json` (grafo completo): 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica).
+- `npm audit --omit=dev --json` (somente produção): 3 vulnerabilidades altas em dependências de runtime:
   - `@nestjs/core`
-  - `path-to-regexp`
   - `@nestjs/platform-express`
+  - `path-to-regexp`
 
-Processo operacional de tratamento:
+Achados adicionais em dependências de desenvolvimento/tooling:
 
-1. Executar auditoria em toda alteração relevante:
-   - `npm audit --omit=dev`
-2. Aplicar correções automáticas seguras:
-   - `npm audit fix`
-3. Reexecutar build e testes após correção:
+- Crítica: `handlebars`.
+- Alta: `picomatch`.
+- Moderadas: cadeia `angular-devkit` e `brace-expansion`.
+
+Priorização de tratamento:
+
+1. Imediato (bloqueador de release): corrigir vulnerabilidades altas em produção (`@nestjs/core`, `@nestjs/platform-express`, `path-to-regexp`) e revalidar build/testes.
+2. Curto prazo (próxima iteração): atualizar dependências de tooling com severidade alta/moderada (`handlebars`, `picomatch`, cadeia `angular-devkit`, `brace-expansion`).
+3. Planejado (governança contínua): institucionalizar rotina de auditoria de dependências por pipeline e SLA de correção por severidade.
+
+Fluxo de execução e validação:
+
+1. Executar SonarQube quando ambiente estiver disponível.
+2. Na indisponibilidade de ambiente Sonar, manter análise conceitual documentada com evidência objetiva de scan (`npm audit`) e risco residual.
+3. Após cada mitigação, reexecutar validação mínima:
    - `npm run build`
    - `npm run test`
    - `npm run test:e2e`
-4. Registrar risco residual no PR quando a atualização não puder ser aplicada imediatamente.
 
-Política de severidade sugerida:
-
-- Crítica/Alta em dependência de produção: bloquear release até mitigação ou exceção formal documentada.
-- Moderada: corrigir no próximo ciclo planejado.
-- Baixa: tratar por backlog técnico com janela definida.
-
-Evolução recomendada:
-
-- Habilitar SCA contínuo (Dependabot/Snyk/GitHub Advisory) no pipeline.
-- Definir SLA de correção por severidade para governança de segurança.
+Configuração SonarQube no projeto: `sonar-project.properties`.
 
 ---
 
@@ -953,6 +995,8 @@ Referências locais já presentes no repositório:
 
 - `docs/contexto.md` — contexto do domínio
 - `docs/debitos_tecnicos.md` — débito técnico
+- `docs/DAS.md` — Design Approval Sheet derivado da documentação arquitetural
+- `docs/adr/README.md` — índice das ADRs e associação textual a PRs simulados
 - `docs/Fase1-DDD.drawio.png` — diagrama DDD
 - Arquivos de domínio e infraestrutura:
   - `src/domain/entities/ordem-servico.ts`
@@ -971,12 +1015,11 @@ Referências locais já presentes no repositório:
 # 13. Considerações Finais
 
 - **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
-- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), JWT não implementado no MVP, cobertura de testes parcial e monitoramento simplificado.
+- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), autenticação sem refresh token no MVP, análise de segurança com fallback conceitual quando Sonar não estiver disponível e monitoramento simplificado por timestamps no fluxo da OS.
 - **Próximos passos:**
-  1. Evoluir documentação de contrato com DTOs de resposta e padronização de erros no OpenAPI/Swagger.
-  2. Implementar persistência em DB e plano de migração.
-  3. Implementar autenticação/autorizações (JWT) para endpoints administrativos.
-  4. Expandir testes unitários e integração para atingir meta de cobertura.
+  1. Consolidar estratégia de versionamento de API em roadmap de evolução.
+  2. Revisitar persistência durável quando o projeto sair do escopo MVP.
+  3. Evoluir observabilidade quando houver requisito de produção com SLA.
 
 ---
 
@@ -997,6 +1040,4 @@ Conforme descrito em `docs/contexto.md`, o sistema foi desenvolvido como MVP con
 
 ## Notas finais
 
-Este arquivo é um template rico — não escreva textos finais em todas as seções de uma vez; preencha incrementalmente à medida que o projeto evolui. Para mudanças estruturais sugeridas, mantenha um ADR atualizado em `docs/adr/`.
-
-TODO: adicionar link para `docs/adr/` e modelo de ADR.
+Este documento foi consolidado com os artefatos finais do MVP. Para evolução futura, manter sincronização entre `DOCUMENTACAO_ARQUITETURA.md`, `docs/DAS.md` e `docs/adr/`.

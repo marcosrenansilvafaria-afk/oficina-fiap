@@ -1,4 +1,5 @@
 import {
+  UseGuards,
   Controller,
   Post,
   Body,
@@ -14,18 +15,30 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CriarCliente } from '../../application/use-cases/criar-cliente';
 import { BuscarCliente } from '../../application/use-cases/buscar-cliente';
 import { clienteRepo } from '../../infraestructure/singletons';
 import { CriarClienteDto } from './dto/cliente.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('clientes')
 @ApiTags('clientes')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard)
 export class ClienteController {
   private criarCliente = new CriarCliente(clienteRepo);
   private buscarCliente = new BuscarCliente();
   private repo = clienteRepo;
+
+  private validarDocumento(documento: string) {
+    const documentoNumerico = String(documento || '').replace(/\D/g, '');
+    if (documentoNumerico.length !== 11 && documentoNumerico.length !== 14) {
+      throw new BadRequestException('documento inválido (use CPF/CNPJ)');
+    }
+    return documentoNumerico;
+  }
 
   @ApiOperation({ summary: 'Criar cliente' })
   @ApiBody({ type: CriarClienteDto })
@@ -37,9 +50,10 @@ export class ClienteController {
     }
 
     try {
+      const documento = this.validarDocumento(body.documento);
       const cliente = this.criarCliente.execute({
         nome: body.nome,
-        documento: body.documento,
+        documento,
       });
       return cliente;
     } catch (err: any) {
