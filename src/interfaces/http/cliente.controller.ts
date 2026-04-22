@@ -32,6 +32,14 @@ export class ClienteController {
   private buscarCliente = new BuscarCliente();
   private repo = clienteRepo;
 
+  private validarDocumento(documento: string) {
+    const documentoNumerico = String(documento || '').replace(/\D/g, '');
+    if (documentoNumerico.length !== 11 && documentoNumerico.length !== 14) {
+      throw new BadRequestException('documento inválido (use CPF/CNPJ)');
+    }
+    return documentoNumerico;
+  }
+
   @ApiOperation({ summary: 'Criar cliente' })
   @ApiBody({ type: CriarClienteDto })
   @ApiOkResponse({ description: 'Cliente criado com sucesso' })
@@ -42,9 +50,10 @@ export class ClienteController {
     }
 
     try {
+      const documento = this.validarDocumento(body.documento);
       const cliente = this.criarCliente.execute({
         nome: body.nome,
-        documento: body.documento,
+        documento,
       });
       return cliente;
     } catch (err: any) {

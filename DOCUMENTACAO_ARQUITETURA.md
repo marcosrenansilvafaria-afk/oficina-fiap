@@ -472,7 +472,7 @@ Aderência arquitetural e lacunas atuais:
 
 ## 4.4 Decisões Arquiteturais (ADR)
 
-Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). Abaixo há ADRs já tomadas e um modelo para novos registros.
+Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). As ADRs foram organizadas em arquivos individuais no diretório `docs/adr/`, com associação textual simples a PRs simulados (ex.: `Relacionado ao PR #simulado-01`).
 
 ### ADRs registradas
 
@@ -593,6 +593,8 @@ Follow-up Actions:
 
 Salvar ADRs em `docs/adr/ADR-XXX.md`.
 
+Índice atual das ADRs: `docs/adr/README.md`.
+
 ---
 
 # 5. API
@@ -632,11 +634,13 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
     - `400`: violação de regra de domínio.
 
 - `POST /os/:id/orcamento`
+- `POST /os/:id/enviar-orcamento`
 - `POST /os/:id/diagnostico`
 - `POST /os/:id/aprovar`
 - `POST /os/:id/executar`
 - `POST /os/:id/finalizar`
 - `POST /os/:id/entregar`
+ - `GET /os/tempo-medio`
   - Descrição: transições do fluxo da OS.
   - Respostas comuns:
     - `200`: transição aplicada.
@@ -929,36 +933,36 @@ Critérios mínimos para aceite de PR:
 
 # 10. Análise de Vulnerabilidades
 
-Baseline atual (executado em 2026-04-18):
+Baseline do scan de dependências (executado em 2026-04-21):
 
-- `npm audit --json`: 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica) considerando todo o grafo.
-- `npm audit --omit=dev`: 3 vulnerabilidades altas em dependências de produção:
+- `npm audit --json` (grafo completo): 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica).
+- `npm audit --omit=dev --json` (somente produção): 3 vulnerabilidades altas em dependências de runtime:
   - `@nestjs/core`
-  - `path-to-regexp`
   - `@nestjs/platform-express`
+  - `path-to-regexp`
 
-Processo operacional de tratamento:
+Achados adicionais em dependências de desenvolvimento/tooling:
 
-1. Executar auditoria em toda alteração relevante:
-   - `npm audit --omit=dev`
-2. Aplicar correções automáticas seguras:
-   - `npm audit fix`
-3. Reexecutar build e testes após correção:
+- Crítica: `handlebars`.
+- Alta: `picomatch`.
+- Moderadas: cadeia `angular-devkit` e `brace-expansion`.
+
+Priorização de tratamento:
+
+1. Imediato (bloqueador de release): corrigir vulnerabilidades altas em produção (`@nestjs/core`, `@nestjs/platform-express`, `path-to-regexp`) e revalidar build/testes.
+2. Curto prazo (próxima iteração): atualizar dependências de tooling com severidade alta/moderada (`handlebars`, `picomatch`, cadeia `angular-devkit`, `brace-expansion`).
+3. Planejado (governança contínua): institucionalizar rotina de auditoria de dependências por pipeline e SLA de correção por severidade.
+
+Fluxo de execução e validação:
+
+1. Executar SonarQube quando ambiente estiver disponível.
+2. Na indisponibilidade de ambiente Sonar, manter análise conceitual documentada com evidência objetiva de scan (`npm audit`) e risco residual.
+3. Após cada mitigação, reexecutar validação mínima:
    - `npm run build`
    - `npm run test`
    - `npm run test:e2e`
-4. Registrar risco residual no PR quando a atualização não puder ser aplicada imediatamente.
 
-Política de severidade sugerida:
-
-- Crítica/Alta em dependência de produção: bloquear release até mitigação ou exceção formal documentada.
-- Moderada: corrigir no próximo ciclo planejado.
-- Baixa: tratar por backlog técnico com janela definida.
-
-Evolução recomendada:
-
-- Habilitar SCA contínuo (Dependabot/Snyk/GitHub Advisory) no pipeline.
-- Definir SLA de correção por severidade para governança de segurança.
+Configuração SonarQube no projeto: `sonar-project.properties`.
 
 ---
 
@@ -991,6 +995,8 @@ Referências locais já presentes no repositório:
 
 - `docs/contexto.md` — contexto do domínio
 - `docs/debitos_tecnicos.md` — débito técnico
+- `docs/DAS.md` — Design Approval Sheet derivado da documentação arquitetural
+- `docs/adr/README.md` — índice das ADRs e associação textual a PRs simulados
 - `docs/Fase1-DDD.drawio.png` — diagrama DDD
 - Arquivos de domínio e infraestrutura:
   - `src/domain/entities/ordem-servico.ts`
@@ -1009,12 +1015,11 @@ Referências locais já presentes no repositório:
 # 13. Considerações Finais
 
 - **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
-- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), autenticação sem refresh token no MVP, cobertura de testes parcial e monitoramento simplificado.
+- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), autenticação sem refresh token no MVP, análise de segurança com fallback conceitual quando Sonar não estiver disponível e monitoramento simplificado por timestamps no fluxo da OS.
 - **Próximos passos:**
-  1. Evoluir documentação de contrato com DTOs de resposta e padronização de erros no OpenAPI/Swagger.
-  2. Implementar persistência em DB e plano de migração.
-  3. Evoluir segurança com refresh token, revogação e política de rotação de segredo.
-  4. Expandir testes unitários e integração para atingir meta de cobertura.
+  1. Consolidar estratégia de versionamento de API em roadmap de evolução.
+  2. Revisitar persistência durável quando o projeto sair do escopo MVP.
+  3. Evoluir observabilidade quando houver requisito de produção com SLA.
 
 ---
 
@@ -1035,6 +1040,4 @@ Conforme descrito em `docs/contexto.md`, o sistema foi desenvolvido como MVP con
 
 ## Notas finais
 
-Este arquivo é um template rico — não escreva textos finais em todas as seções de uma vez; preencha incrementalmente à medida que o projeto evolui. Para mudanças estruturais sugeridas, mantenha um ADR atualizado em `docs/adr/`.
-
-TODO: adicionar link para `docs/adr/` e modelo de ADR.
+Este documento foi consolidado com os artefatos finais do MVP. Para evolução futura, manter sincronização entre `DOCUMENTACAO_ARQUITETURA.md`, `docs/DAS.md` e `docs/adr/`.

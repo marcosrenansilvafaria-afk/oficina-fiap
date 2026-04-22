@@ -87,6 +87,26 @@ describe('Controllers integration (e2e)', () => {
     );
   });
 
+  it('POST /clientes should reject invalid documento format', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/clientes')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nome: 'Joao', documento: '123' });
+
+    expect(res.status).toBe(400);
+    expect(String(res.body.message)).toContain('documento inválido');
+  });
+
+  it('POST /veiculos should reject invalid placa format', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/veiculos')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ placa: 'AAAA', modelo: 'Onix', marca: 'GM', ano: 2022 });
+
+    expect(res.status).toBe(400);
+    expect(String(res.body.message)).toContain('placa inválida');
+  });
+
   it('POST /pecas then PATCH /pecas/:id/estoque should validate numeric delta', async () => {
     const create = await request(app.getHttpServer())
       .post('/pecas')
@@ -123,6 +143,16 @@ describe('Controllers integration (e2e)', () => {
   it('POST /os/:id/orcamento should return 404 for missing OS', async () => {
     const res = await request(app.getHttpServer())
       .post('/os/inexistente/orcamento')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send();
+
+    expect(res.status).toBe(404);
+    expect(String(res.body.message)).toContain('OS não encontrada');
+  });
+
+  it('POST /os/:id/enviar-orcamento should return 404 for missing OS', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/os/inexistente/enviar-orcamento')
       .set('Authorization', `Bearer ${accessToken}`)
       .send();
 

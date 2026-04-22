@@ -91,6 +91,14 @@ describe('Workflow e2e', () => {
       .send();
     okStatus(gerarRes);
 
+    // simular envio ao cliente
+    const enviarRes = await request(app.getHttpServer())
+      .post(`/os/${osId}/enviar-orcamento`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send();
+    okStatus(enviarRes);
+    expect(enviarRes.body.status).toBe('ENVIADO');
+
     // aprovar
     const aprovarRes = await request(app.getHttpServer())
       .post(`/os/${osId}/aprovar`)
@@ -111,6 +119,7 @@ describe('Workflow e2e', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send();
     okStatus(finalizarRes);
+    expect(finalizarRes.body.tempoExecucaoMs).not.toBeNull();
 
     // entregar
     const entregarRes = await request(app.getHttpServer())
@@ -125,5 +134,12 @@ describe('Workflow e2e', () => {
       .send();
     okStatus(fetchRes);
     expect(fetchRes.body.id).toBe(osId);
+    expect(fetchRes.body.envioOrcamento.status).toBe('ENVIADO');
+
+    const tempoRes = await request(app.getHttpServer())
+      .get('/os/tempo-medio')
+      .send();
+    okStatus(tempoRes);
+    expect(tempoRes.body.totalExecucoesConcluidas).toBeGreaterThanOrEqual(1);
   }, 20000);
 });

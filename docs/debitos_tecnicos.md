@@ -13,3 +13,7 @@ Referências de arquivos atuais:
 - `src/application/use-cases/ajustar-estoque-peca.ts`
 
 Status: não iniciado. Prioridade: alta quando integrarmos estoque/peças ao fluxo de execução.
+
+- **CRUD de peças e insumos (escopo da entrega final)**: por decisão de escopo do MVP final, este item não será evoluído além do nível atual nesta entrega. A decisão evita aumento de complexidade e retrabalho fora dos requisitos obrigatórios.
+  - Justificativa arquitetural: foco em concluir fluxo crítico da OS, segurança básica, documentação de governança (DAS/ADR) e monitoramento simples.
+  - Critério para evolução futura: implementar somente em nova iteração dedicada, com revisão de impacto no fluxo de orçamento/estoque.

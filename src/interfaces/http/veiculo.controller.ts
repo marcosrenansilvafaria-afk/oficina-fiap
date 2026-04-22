@@ -32,6 +32,23 @@ export class VeiculoController {
   private buscarVeiculo = new BuscarVeiculo();
   private repo = veiculoRepo;
 
+  private validarPlaca(placa: string) {
+    const placaNormalizada = String(placa || '')
+      .trim()
+      .toUpperCase();
+    const padraoMercosul = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+    const padraoAntigo = /^[A-Z]{3}-?[0-9]{4}$/;
+
+    if (
+      !padraoMercosul.test(placaNormalizada) &&
+      !padraoAntigo.test(placaNormalizada)
+    ) {
+      throw new BadRequestException('placa inválida');
+    }
+
+    return placaNormalizada;
+  }
+
   @ApiOperation({ summary: 'Criar veiculo' })
   @ApiBody({ type: CriarVeiculoDto })
   @ApiOkResponse({ description: 'Veiculo criado com sucesso' })
@@ -44,8 +61,9 @@ export class VeiculoController {
     }
 
     try {
+      const placa = this.validarPlaca(body.placa);
       const veiculo = this.criarVeiculo.execute({
-        placa: body.placa,
+        placa,
         modelo: body.modelo,
         marca: body.marca,
         ano: Number(body.ano),

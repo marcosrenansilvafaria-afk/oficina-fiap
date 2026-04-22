@@ -59,6 +59,14 @@ export class OrdemServicoController {
 
   // using shared singleton repo
   private repo = ordemRepo;
+  private envioOrcamento = new Map<
+    string,
+    { status: 'NAO_ENVIADO' | 'ENVIADO'; enviadoEm?: string }
+  >();
+  private execucaoIniciadaEm = new Map<string, number>();
+  private execucaoConcluidaMs = new Map<string, number>();
+  private totalExecucoesConcluidas = 0;
+  private totalTempoExecucaoMs = 0;
 
   @ApiOperation({ summary: 'Criar ordem de servico' })
   @ApiBody({ type: CriarOrdemServicoDto })
@@ -130,10 +138,43 @@ export class OrdemServicoController {
 
     try {
       const result = this.gerarOrcamento.execute(id);
+      if (!this.envioOrcamento.has(id)) {
+        this.envioOrcamento.set(id, { status: 'NAO_ENVIADO' });
+      }
       return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
+  }
+
+  @ApiOperation({ summary: 'Simular envio de orcamento ao cliente' })
+  @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
+  @ApiOkResponse({ description: 'Orcamento marcado como enviado' })
+  @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @ApiBearerAuth('bearer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ATENDENTE)
+  @Post(':id/enviar-orcamento')
+  enviarOrcamento(@Param('id') id: string) {
+    const os = this.repo.getById(id);
+    if (!os) throw new NotFoundException('OS não encontrada');
+
+    if (os.getStatus() !== 'AGUARDANDO_APROVACAO') {
+      throw new BadRequestException(
+        'Só é possível enviar orçamento quando a OS está em AGUARDANDO_APROVACAO',
+      );
+    }
+
+    const envio = {
+      status: 'ENVIADO' as const,
+      enviadoEm: new Date().toISOString(),
+    };
+    this.envioOrcamento.set(id, envio);
+
+    return {
+      ordemServicoId: id,
+      ...envio,
+    };
   }
 
   @ApiOperation({ summary: 'Iniciar diagnostico da OS' })
@@ -190,6 +231,7 @@ export class OrdemServicoController {
 
     try {
       const result = this.iniciarExecucao.execute(id);
+      this.execucaoIniciadaEm.set(id, Date.now());
       return result;
     } catch (err: any) {
       throw new BadRequestException(err.message);
@@ -210,10 +252,39 @@ export class OrdemServicoController {
 
     try {
       const result = this.finalizarOrdem.execute(id);
-      return result;
+      const inicioExecucao = this.execucaoIniciadaEm.get(id);
+      let tempoExecucaoMs: number | null = null;
+
+      if (inicioExecucao) {
+        tempoExecucaoMs = Date.now() - inicioExecucao;
+        this.execucaoConcluidaMs.set(id, tempoExecucaoMs);
+        this.totalExecucoesConcluidas += 1;
+        this.totalTempoExecucaoMs += tempoExecucaoMs;
+        this.execucaoIniciadaEm.delete(id);
+      }
+
+      return {
+        ...result,
+        tempoExecucaoMs,
+      };
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
+  }
+
+  @ApiOperation({ summary: 'Consultar tempo medio de execucao das OS' })
+  @ApiOkResponse({ description: 'Métricas simples de tempo de execução' })
+  @Get('tempo-medio')
+  tempoMedio() {
+    const tempoMedioExecucaoMs =
+      this.totalExecucoesConcluidas === 0
+        ? 0
+        : Math.round(this.totalTempoExecucaoMs / this.totalExecucoesConcluidas);
+
+    return {
+      totalExecucoesConcluidas: this.totalExecucoesConcluidas,
+      tempoMedioExecucaoMs,
+    };
   }
 
   @ApiOperation({ summary: 'Entregar veiculo da OS' })
@@ -244,13 +315,23 @@ export class OrdemServicoController {
   buscar(@Param('id') id: string) {
     const os = this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
-    return os;
+    return {
+      ...os,
+      envioOrcamento: this.envioOrcamento.get(id) || { status: 'NAO_ENVIADO' },
+      tempoExecucaoMs: this.execucaoConcluidaMs.get(id) ?? null,
+    };
   }
 
   @ApiOperation({ summary: 'Listar ordens de servico' })
   @ApiOkResponse({ description: 'Lista de OS retornada com sucesso' })
   @Get()
   listar() {
-    return this.repo.all();
+    return this.repo.all().map((os) => ({
+      ...os,
+      envioOrcamento: this.envioOrcamento.get(os.id) || {
+        status: 'NAO_ENVIADO',
+      },
+      tempoExecucaoMs: this.execucaoConcluidaMs.get(os.id) ?? null,
+    }));
   }
 }
