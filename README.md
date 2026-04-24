@@ -18,7 +18,12 @@ Disponibilizar uma API simples e rastreavel para:
 - Swagger
 - Docker / Docker Compose
 
-## Como executar localmente (sem Docker)
+## Como executar localmente
+
+Crie um arquivo `.env` baseado no `.env.example`
+
+
+### Executar sem Docker
 
 1. Instale dependencias:
 
@@ -38,7 +43,7 @@ npm run start:dev
 4. Acesse a documentacao Swagger:
 - http://localhost:3000/docs
 
-## Como executar com Docker
+## Executar com Docker
 
 ```bash
 docker-compose up --build
@@ -69,9 +74,20 @@ npm run test:cov:critical
 Analise SonarQube (quando ambiente disponivel):
 
 ```bash
-# requer servidor SonarQube acessivel
-sonar-scanner
+# gerar cobertura antes do scan
+npm run test:cov
+
+# executar scanner via Docker
+docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TOKEN="<SEU_TOKEN>" -v "${PWD}:/usr/src" sonarsource/sonar-scanner-cli
 ```
+
+### Relatorio SonarQube (onde inserir)
+
+Após executar o scan, registrar o resultado em `DOCUMENTACAO_ARQUITETURA.md`, na seção 10 (Análise de Vulnerabilidades), incluindo:
+- Link do dashboard do projeto no SonarQube.
+- Data/hora da análise.
+- Status do Quality Gate.
+- Principais métricas (Coverage, Bugs, Vulnerabilities, Code Smells).
 
 Fallback obrigatorio (MVP):
 - Registrar analise conceitual de riscos em `DOCUMENTACAO_ARQUITETURA.md`.
