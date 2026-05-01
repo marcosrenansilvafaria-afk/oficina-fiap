@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { seedInMemoryRepositories } from './infraestructure/singletons';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,6 +27,10 @@ async function bootstrap() {
       persistAuthorization: true,
     },
   });
+
+  if (process.env.SEED_DATA === 'true') {
+    seedInMemoryRepositories();
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }

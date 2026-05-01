@@ -1,13 +1,13 @@
 # Oficina FIAP - MVP Backend
 
-Backend do desafio de oficina mecanica com foco em fluxo de Ordem de Servico (OS), autenticacao JWT e entrega incremental baseada em DDD + Clean Architecture.
+Backend do desafio de oficina mecânica com foco em fluxo de Ordem de Serviço (OS), autenticação JWT e entrega incremental baseada em DDD + Clean Architecture.
 
 ## Objetivo
 
-Disponibilizar uma API simples e rastreavel para:
-- Criar e acompanhar Ordens de Servico.
-- Gerenciar clientes, veiculos, pecas e servicos.
-- Simular envio de orcamento ao cliente.
+Disponibilizar uma API simples e rastreável para:
+- Criar e acompanhar Ordens de Serviço.
+- Gerenciar clientes, veículos, peças e serviços.
+- Simular envio de orçamento ao cliente.
 - Garantir controle de acesso com JWT + RBAC.
 
 ## Stack
@@ -18,14 +18,45 @@ Disponibilizar uma API simples e rastreavel para:
 - Swagger
 - Docker / Docker Compose
 
+## Como usar o `.env`
+
+Crie o arquivo `.env` copiando o modelo `.env.example` para a raiz do projeto.
+
+```bash
+copy .env.example .env
+```
+
+Variáveis atuais:
+
+- `JWT_SECRET`: chave usada para assinar os tokens JWT. Use uma string longa, aleatória e diferente entre ambientes.
+- `PORT`: porta em que a API sobe localmente. O padrão é `3000`.
+- `SEED_DATA`: quando `true`, pré-carrega dados mínimos (in-memory) para acelerar a demo no Swagger.
+
+Seed (quando `SEED_DATA=true`):
+
+- Cliente: `cli-001`
+- Veículo: `vei-001`
+- Serviço: `srv-001`
+- Peça: `pec-001`
+
+Observações:
+
+- O seed roda apenas no startup e não sobrescreve dados existentes.
+- Como a persistência é in-memory, os dados são perdidos ao reiniciar o processo.
+- Se alterar `SEED_DATA`, reinicie a API.
+
+Boas práticas:
+
+- Nunca versionar `.env`.
+- Em ambiente local, mantenha valores simples e previsíveis.
+- Em produção, prefira secrets do ambiente/CI e rotacione a chave quando necessário.
+- Se alterar `JWT_SECRET`, todos os tokens emitidos anteriormente deixam de ser válidos.
+
 ## Como executar localmente
 
-Crie um arquivo `.env` baseado no `.env.example`
+### Sem Docker
 
-
-### Executar sem Docker
-
-1. Instale dependencias:
+1. Instale dependências:
 
 ```bash
 npm install
@@ -40,16 +71,29 @@ npm run start:dev
 3. Acesse a API:
 - http://localhost:3000
 
-4. Acesse a documentacao Swagger:
+4. Acesse a documentação Swagger:
 - http://localhost:3000/docs
 
-## Executar com Docker
+Ordem recomendada para demo (fluxo da OS):
+
+1. `POST /auth/login` (obter token JWT).
+2. `POST /clientes`, `POST /veiculos`, `POST /servicos`, `POST /pecas`.
+3. `POST /os`.
+4. `POST /os/:id/diagnostico`.
+5. `POST /os/:id/item`.
+6. `POST /os/:id/orcamento` e `POST /os/:id/enviar-orcamento`.
+7. `POST /os/:id/aprovar`.
+8. `POST /os/:id/executar` e `POST /os/:id/finalizar`.
+9. `POST /os/:id/entregar`.
+10. `GET /os/:id`, `GET /os` e `GET /os/tempo-medio`.
+
+### Com Docker
 
 ```bash
 docker-compose up --build
 ```
 
-API disponivel em:
+API disponível em:
 - http://localhost:3000
 
 ## Testes e qualidade
@@ -61,41 +105,32 @@ npm run build
 npm run lint
 npm run test
 npm run test:e2e
-```
-
-Cobertura critica:
-
-```bash
+npm run test:cov
 npm run test:cov:critical
 ```
 
-## Seguranca e vulnerabilidades
+Análise SonarQube:
 
-Analise SonarQube (quando ambiente disponivel):
+1. Gere cobertura antes do scan:
 
 ```bash
-# gerar cobertura antes do scan
 npm run test:cov
+```
 
-# executar scanner via Docker
+2. Execute o scanner:
+
+```bash
 docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TOKEN="<SEU_TOKEN>" -v "${PWD}:/usr/src" sonarsource/sonar-scanner-cli
 ```
 
-### Relatorio SonarQube (onde inserir)
+Relatório SonarQube da entrega:
 
-Após executar o scan, registrar o resultado em `DOCUMENTACAO_ARQUITETURA.md`, na seção 10 (Análise de Vulnerabilidades), incluindo:
-- Link do dashboard do projeto no SonarQube.
-- Data/hora da análise.
-- Status do Quality Gate.
-- Principais métricas (Coverage, Bugs, Vulnerabilities, Code Smells).
+- Arquivo dedicado: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
+- Resumo consolidado: [DOCUMENTACAO_ARQUITETURA.md](DOCUMENTACAO_ARQUITETURA.md)
 
-Fallback obrigatorio (MVP):
-- Registrar analise conceitual de riscos em `DOCUMENTACAO_ARQUITETURA.md`.
-- Cobrir autenticacao, validacao de dados, exposicao de informacoes e tratamento de erros.
+## Documentação do projeto
 
-## Documentacao do projeto
-
-- Arquitetura: `DOCUMENTACAO_ARQUITETURA.md`
-- DAS: `docs/DAS.md`
-- ADRs: `docs/adr/README.md`
-- Debitos tecnicos: `docs/debitos_tecnicos.md`
+- [DOCUMENTACAO_ARQUITETURA.md](DOCUMENTACAO_ARQUITETURA.md)
+- [docs/DAS.md](docs/DAS.md)
+- [docs/adr/README.md](docs/adr/README.md)
+- [docs/debitos_tecnicos.md](docs/debitos_tecnicos.md)

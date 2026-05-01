@@ -1,7 +1,5 @@
 @startuml Auth_JWT_Flow
-!NEW_C4_STYLE=1
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Dynamic.puml
-LAYOUT_LEFT_RIGHT()
+!theme C4_united from https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/themes
 
 title Fluxo de Autenticacao JWT (MVP)
 

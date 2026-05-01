@@ -3,6 +3,17 @@
 Documento em evolução incremental, com foco em decisões arquiteturais e rastreabilidade técnica.
 
 ---
+## Sumario
+  
+  TO DO: Criar sumario;
+
+  Entregraveis:
+  [Drawio](https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing)
+  [Drawio - local](./oficina-mecanica-drawio.drawio)
+
+
+
+
 
 # 1. Introdução
 
@@ -111,7 +122,7 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 
 - Monólito em camadas com DDD aplicado no domínio e Clean Architecture para separar responsabilidades.
 - Camadas: Domain, Application (use-cases), Interfaces (HTTP/controllers), Infrastructure (repositórios).
-- Implementação atual: persistência em memória (in-memory) para MVP; migrar para banco quando necessário.
+- Implementação atual: persistência em memória (in-memory) para MVP; migrar para banco quando necessário. [ADR-003](./adr/ADR-003-persistencia-in-memory-mvp.md)
 
 ### 2.2.2 Segurança
 
@@ -184,9 +195,9 @@ O sistema utiliza uma linguagem ubíqua alinhada ao domínio de oficinas mecâni
   7. Finalizar
   8. Entregar
   
-![Texto alternativo](docs/image/eventStorming2.png)  
+![Event storming](./diagram/image/eventStorming2.png)  
 
-[Drawio](https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing)
+
 
 ## 3.3 Entidades e Agregados
 
@@ -213,7 +224,7 @@ A entidade OrdemServico é o Aggregate Root do sistema, sendo responsável por:
 
 Apenas o Aggregate Root pode ser manipulado diretamente por outros componentes do sistema.
 
-![DDD Oficina](docs/image/Oficina-DDD.png)  
+![DDD Oficina](./diagram/image/Oficina-DDD.png)  
 
 ---
 
@@ -389,17 +400,17 @@ Regras explicitamente fora do escopo desta etapa:
 
 # 4. Arquitetura de Software
 
-## 4.1 Visão Geral (HLD)
+## 4.1 Visão Geral
 
 - Arquitetura adotada: DDD + Clean Architecture em aplicação NestJS.
 - Descrição: monolito modular com separação clara entre domínio, casos de uso, interfaces e infra.
 
-Diagramas de arquitetura (C4) atualmente documentados:
+Diagramas de arquitetura (C4) criados em plantUML como exemplificado na "Aula 3 - Modelos e Diagramas de Arquitetura: C4 Model".
 
-- C1 (Contexto): `docs/image/C1_Oficina_Context.png`
-- C2 (Containers): `docs/image/C2_Oficina_Container.png`
-- C3 (Componentes): `docs/image/C3_Oficina_Component.png`
-- Fluxo de autenticação (sequência): `docs/image/fluxoAutenticacao.png`
+- C1 (Contexto): `./diagram/C1_Oficina_Context.puml`
+- C2 (Containers): `./diagram/C2_Oficina_Container.puml`
+- C3 (Componentes): `./diagram/C3_Oficina_Component.puml`
+- Fluxo de autenticação (sequência): `.diagram/fluxoAutenticacao.puml`
 
 Observação: o nível C4 (código) será elaborado em etapa posterior por ser mais orientado a desenvolvedores e depender da estabilização final dos módulos internos.
 
@@ -410,7 +421,7 @@ Observação: o nível C4 (código) será elaborado em etapa posterior por ser m
 - Sistema: Backend da Oficina (MVP) — expõe API para front-end/consumidores.
 - Usuários: clientes, atendentes e mecânicos.
 
-![C1 - Contexto](docs/image/C1_Oficina_Context.png)
+![C1 - Contexto](./diagram/image/C1_Oficina_Context.png)
 
 ### 4.2.2 Containers
 
@@ -421,7 +432,7 @@ Observação: o nível C4 (código) será elaborado em etapa posterior por ser m
 
 Justificativa de modelagem: no diagrama C2, a persistência atual é representada como repositório in-memory (e não como banco de dados), pois este é o mecanismo efetivamente implementado no momento. O banco de dados aparece como elemento futuro para deixar explícito o plano de migração.
 
-![C2 - Containers](docs/image/C2_Oficina_Container.png)
+![C2 - Containers](./diagram/image/C2_Oficina_Container.png)
 
 ### 4.2.3 Componentes
 
@@ -430,20 +441,17 @@ Justificativa de modelagem: no diagrama C2, a persistência atual é representad
 - Domain Entities — `src/domain/entities/*`.
 - Repositories (Infra) — `src/infraestructure/*` (in-memory atualmente, com substituição planejada após fase de testes).
 
-![C3 - Componentes](docs/image/C3_Oficina_Component.png)
+![C3 - Componentes](./diagram/image/C3_Oficina_Component.png)
 
-### 4.2.4 Código (C4)
-
-- Nível não documentado nesta etapa.
-- Justificativa: o diagrama de código é direcionado principalmente ao time de desenvolvimento e será produzido após estabilização da estrutura interna de módulos, interfaces e contratos.
-
-### 4.2.5 Fluxo de autenticação JWT (sequência)
+### 4.2.4 Fluxo de autenticação JWT (sequência)
 
 - Login via `POST /auth/login` retorna `access_token` com expiração de 1h.
 - Endpoints protegidos usam `Authorization: Bearer <token>`.
 - Validação ocorre com `JwtAuthGuard` + `JwtStrategy` e autorização com `RolesGuard`.
 
-![Fluxo de Autenticacao JWT](docs/image/fluxoAutenticacao.png)
+#Roles: TO DO (definir papéis e escopo de acesso para endpoints administrativos e operacionais).
+
+![Fluxo de Autenticacao JWT](./diagram/image/fluxoAutenticacao.png)
 
 ## 4.3 Low Level Design (LLD)
 
@@ -460,6 +468,8 @@ src/
   infraestructure/
     in-memory-*.ts
 ```
+[Exemplo de estrutura de código](./diagram/image/lld-strucuture.png)
+
 
 - Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases), Interfaces (adapters), Infrastructure (repositorios, singletons).
 
@@ -472,129 +482,8 @@ Aderência arquitetural e lacunas atuais:
 
 ## 4.4 Decisões Arquiteturais (ADR)
 
-Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). As ADRs foram organizadas em arquivos individuais no diretório `docs/adr/`, com associação textual simples a PRs simulados (ex.: `Relacionado ao PR #simulado-01`).
-
-### ADRs registradas
-
-- **ADR-001 — Modelagem de domínio com DDD**
-  - Status: Aceito
-  - Data: 2026-04-18
-  - Contexto: o fluxo de OS possui regras de transição, validações e invariantes que exigem modelagem explícita.
-  - Decisão: adotar DDD no núcleo de domínio, com foco em aggregate root `OrdemServico` e linguagem ubíqua.
-  - Alternativas consideradas: modelo anêmico com regras distribuídas em controllers/services; scripts transacionais sem agregados.
-  - Consequências positivas: maior consistência das regras, melhor testabilidade de invariantes, documentação mais alinhada ao negócio.
-  - Consequências negativas: curva de aprendizado e maior disciplina de modelagem.
-
-- **ADR-002 — Estrutura em Clean Architecture**
-  - Status: Aceito
-  - Data: 2026-04-18
-  - Contexto: necessidade de separar domínio de infraestrutura e framework para reduzir acoplamento e facilitar evolução.
-  - Decisão: manter camadas Domain, Application, Interfaces e Infrastructure no monólito modular.
-  - Alternativas consideradas: arquitetura em camadas sem regra de dependência explícita; abordagem orientada apenas ao framework.
-  - Consequências positivas: maior clareza de responsabilidades e evolução progressiva de adaptadores.
-  - Consequências negativas: necessidade de reforçar contratos (ports/interfaces) para plena inversão de dependência.
-
-- **ADR-003 — Persistência inicial em memória no MVP**
-  - Status: Aceito
-  - Data: 2026-04-18
-  - Contexto: fase MVP prioriza validação de domínio, fluxo de negócio e testes iniciais sem custo operacional de banco.
-  - Decisão: utilizar repositórios in-memory como persistência temporária.
-  - Alternativas consideradas: adoção imediata de RDBMS; adoção imediata de NoSQL.
-  - Consequências positivas: velocidade de entrega, ambiente simples para testes iniciais.
-  - Consequências negativas: ausência de durabilidade e limitações para cenários concorrentes reais.
-  - Plano de migração: substituir por banco de dados após fase de testes e estabilização das regras.
-
-- **ADR-004 — Adoção de NestJS como framework backend**
-  - Status: Aceito
-  - Data: 2026-04-18
-  - Contexto: necessidade de produtividade, modularidade e base consistente para API REST.
-  - Decisão: adotar NestJS como framework principal do backend.
-  - Alternativas consideradas: Express puro; Fastify sem estrutura modular definida no projeto.
-  - Consequências positivas: organização por módulos, integração nativa com validação e Swagger.
-  - Consequências negativas: acoplamento a convenções do framework e necessidade de disciplina para preservar limites de domínio.
-
-- **ADR-005 — Monólito modular no MVP (em vez de microserviços)**
-  - Status: Aceito
-  - Data: 2026-04-18
-  - Contexto: escopo do MVP e equipe exigem baixa complexidade operacional e foco na regra de negócio.
-  - Decisão: manter monólito modular com separação lógica por contexto.
-  - Alternativas consideradas: decomposição precoce em microserviços.
-  - Consequências positivas: menor custo operacional, debugging simplificado, entrega mais rápida.
-  - Consequências negativas: escala independente por domínio adiada para fases futuras.
-
-- **ADR-006 — Estratégia de persistência pós-testes (RDBMS primário)**
-  - Status: Proposto
-  - Data: 2026-04-18
-  - Contexto: após validação funcional do MVP, será necessária persistência durável e consistência transacional.
-  - Decisão: adotar banco relacional como persistência primária da OS (ex.: PostgreSQL), mantendo abstração de repositório.
-  - Alternativas consideradas: manutenção do in-memory; migração direta para NoSQL sem necessidade comprovada.
-  - Consequências positivas: integridade referencial, durabilidade e melhor suporte a consultas operacionais.
-  - Consequências negativas: aumento de complexidade de infraestrutura, migração de dados e testes de integração.
-
-- **ADR-007 — Estratégia de autenticação e autorização (JWT + RBAC)**
-  - Status: Aceito
-  - Data: 2026-04-18
-  - Contexto: endpoints administrativos e operacionais exigirão controle de acesso por perfil.
-  - Decisão: adotar JWT para autenticação stateless e RBAC para autorização por papel.
-  - Implementação no MVP: `POST /auth/login` com usuário mock in-memory, access token com expiração de 1h e payload mínimo (`sub`, `role`).
-  - Escopo da implementação MVP: sem refresh token e sem persistência de usuários, mantendo simplicidade operacional inicial.
-  - Alternativas consideradas: autenticação por sessão; API key única para todos os perfis.
-  - Consequências positivas: controle granular de acesso e integração simples com APIs.
-  - Consequências negativas: gestão de ciclo de token fica parcial no MVP (refresh/revogação planejados para evolução).
-
-- **ADR-008 — Estratégia de testes e quality gate**
-  - Status: Proposto
-  - Data: 2026-04-18
-  - Contexto: o crescimento do domínio exige proteção contra regressão em regras de negócio e fluxo HTTP.
-  - Decisão: definir pirâmide de testes com unitário (domínio/use-case), integração (repositórios/adaptadores) e E2E (fluxo crítico).
-  - Alternativas consideradas: foco apenas em E2E; foco apenas em unitário.
-  - Consequências positivas: feedback mais rápido e cobertura mais robusta de regras.
-  - Consequências negativas: aumento de esforço inicial para setup e manutenção da suíte.
-
-- **ADR-009 — Versionamento de API**
-  - Status: Proposto
-  - Data: 2026-04-18
-  - Contexto: evolução de contratos HTTP sem quebra de clientes exige estratégia explícita de compatibilidade.
-  - Decisão: versionar endpoints por prefixo (`/v1`) e manter política de depreciação.
-  - Alternativas consideradas: versionamento apenas por header; ausência de versionamento explícito.
-  - Consequências positivas: previsibilidade para consumidores e governança de mudanças.
-  - Consequências negativas: manutenção paralela temporária de versões em transições.
-
-- **ADR-010 — Padronização de erros e observabilidade mínima**
-  - Status: Proposto
-  - Data: 2026-04-18
-  - Contexto: operação e suporte exigem rastreabilidade de falhas de domínio e infraestrutura.
-  - Decisão: padronizar envelope de erro na API, mapear exceções de domínio para respostas consistentes e adotar logs estruturados com correlation id.
-  - Alternativas consideradas: tratamento ad-hoc por controller; logging sem estrutura.
-  - Consequências positivas: troubleshooting mais rápido e menor ambiguidade para consumidores da API.
-  - Consequências negativas: necessidade de disciplina de implementação em toda a camada HTTP.
-
-### Modelo de ADR (usar para novos registros)
-
-```
-Title: ADR-XXX - Título da decisão
-Status: proposed | accepted | superseded | deprecated
-Date: YYYY-MM-DD
-Context:
-  - Problema arquitetural e motivação
-  - Restrições e premissas
-Decision:
-  - Decisão tomada
-  - Escopo da decisão
-Alternatives:
-  - Opção A (prós/contras)
-  - Opção B (prós/contras)
-Consequences:
-  - Positivas
-  - Negativas/trade-offs
-Follow-up Actions:
-  - Ação técnica necessária para consolidar a decisão
-```
-
-Salvar ADRs em `docs/adr/ADR-XXX.md`.
-
-Índice atual das ADRs: `docs/adr/README.md`.
-
+Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). As ADRs foram organizadas em arquivos individuais no diretório `docs/adr/`.
+TO DO TABELA LINK ADR:
 ---
 
 # 5. API
@@ -618,6 +507,8 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
     - `200`: OS criada.
     - `400`: `clienteId`/`veiculoId` inválidos.
 
+- `POST /os/:id/diagnostico`
+
 - `POST /os/:id/item`
   - Descrição: adiciona item (serviço/peça) à OS.
   - Request (exemplo):
@@ -635,17 +526,10 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
 
 - `POST /os/:id/orcamento`
 - `POST /os/:id/enviar-orcamento`
-- `POST /os/:id/diagnostico`
 - `POST /os/:id/aprovar`
 - `POST /os/:id/executar`
 - `POST /os/:id/finalizar`
 - `POST /os/:id/entregar`
- - `GET /os/tempo-medio`
-  - Descrição: transições do fluxo da OS.
-  - Respostas comuns:
-    - `200`: transição aplicada.
-    - `404`: OS não encontrada.
-    - `400`: transição inválida para o status atual.
 
 - `GET /os/:id`
   - Descrição: consulta OS por identificador.
@@ -653,6 +537,11 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
 
 - `GET /os`
   - Descrição: lista OS.
+
+- `GET /os/tempo-medio`
+  - Descrição: métrica de tempo médio das execuções.
+  - Respostas comuns:
+    - `200`: métrica calculada.
 
 ### Clientes (`/clientes`)
 
@@ -726,6 +615,45 @@ Como validar funcionamento:
   - `http://localhost:3000/docs-json`
 4. Confirmar que os controllers principais aparecem na documentação:
   - `/os`, `/clientes`, `/veiculos`, `/servicos`, `/pecas`
+
+Ordem recomendada para demo (fluxo lógico da OS):
+
+1. `POST /auth/login` (obter token JWT).
+2. Preparação de dados (ATENDENTE/ADMIN):
+  - `POST /clientes`
+  - `POST /veiculos`
+  - `POST /servicos`
+  - `POST /pecas`
+3. Início da OS (ATENDENTE):
+  - `POST /os`
+4. Diagnóstico (MECANICO):
+  - `POST /os/:id/diagnostico`
+5. Adição de itens (ATENDENTE):
+  - `POST /os/:id/item`
+6. Orçamento e envio (ATENDENTE):
+  - `POST /os/:id/orcamento`
+  - `POST /os/:id/enviar-orcamento`
+7. Aprovação (ATENDENTE):
+  - `POST /os/:id/aprovar`
+8. Execução (MECANICO):
+  - `POST /os/:id/executar`
+9. Finalização (MECANICO):
+  - `POST /os/:id/finalizar`
+10. Entrega (ATENDENTE):
+  - `POST /os/:id/entregar`
+11. Consultas e métricas (público):
+  - `GET /os/:id`, `GET /os`, `GET /os/tempo-medio`
+
+Checklist rápido da demo (para apresentação):
+
+- Subir a API e abrir `/docs`.
+- Autenticar via `POST /auth/login` e preencher o Bearer token no Swagger.
+- Criar dados mínimos (cliente, veículo, serviço e peça).
+  - Opcional: habilite `SEED_DATA=true` no `.env` para pré-carregar dados de demo e pular esta etapa.
+  - IDs seed (fixos): cliente `cli-001`, veículo `vei-001`, serviço `srv-001`, peça `pec-001`.
+- Criar OS e seguir o fluxo completo até `ENTREGUE`.
+- Demonstrar validação de regra: tentar pular um estado e mostrar o erro.
+- Encerrar mostrando consulta da OS e métrica de tempo médio.
 
 Observações importantes:
 
@@ -933,6 +861,31 @@ Critérios mínimos para aceite de PR:
 
 # 10. Análise de Vulnerabilidades
 
+### 10.1 Relatório SonarQube final
+
+Relatório dedicado: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
+
+Resumo da última análise validada durante a sessão:
+
+- Projeto: `oficina-mvp`
+- Scanner: `sonarsource/sonar-scanner-cli 8.0.1.6346`
+- Resultado da execução do scanner: `EXECUTION SUCCESS`
+- Resultado da análise: `ANALYSIS SUCCESSFUL`
+- Última execução validada: `24/04/2026 01:15 UTC`
+- Dashboard do projeto: `http://localhost:9000/dashboard?id=oficina-mvp`
+
+Métricas de cobertura obtidas na mesma janela de validação:
+
+- Coverage local de referência (`npm run test:cov`): `91.96%` statements, `88.35%` branches, `97.56%` functions, `92.14%` lines
+- Controllers com cobertura elevada no Sonar:
+  - `src/interfaces/http/ordem-servico.controller.ts`: `94.9%`
+  - `src/interfaces/http/peca.controller.ts`: `95.6%`
+  - `src/interfaces/http/servico.controller.ts`: `96.7%`
+
+Observação:
+
+- A sessão consolidou a execução bem-sucedida do scanner, a importação de cobertura e o relatório dedicado em docs/relatorios/sonar-relatorio-final.md; 
+
 Baseline do scan de dependências (executado em 2026-04-21):
 
 - `npm audit --json` (grafo completo): 12 vulnerabilidades no total (7 moderadas, 4 altas, 1 crítica).
@@ -970,7 +923,7 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 ## 11.1 Como rodar (local)
 
-1. Pré-requisitos: Node >= TODO, npm/yarn, Docker (opcional).
+1. Pré-requisitos: Node.js 20+, npm, Docker (opcional).
 2. Instalar dependências: `npm install`.
 3. Rodar em dev: `npm run start:dev`.
 
@@ -986,10 +939,10 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 # 12. Entregáveis
 
-- Repositório: TODO: link do repositório (inserir URL)
+- Repositório: [marcosrenansilvafaria-afk/oficina-fiap](https://github.com/marcosrenansilvafaria-afk/oficina-fiap)
 - Documentação: `DOCUMENTACAO_ARQUITETURA.md` (este arquivo) + `docs/` (links abaixo)
 - Participantes:
-  - TODO: listar nomes e papéis
+  - Informação não formalizada no repositório final.
 
 Referências locais já presentes no repositório:
 
@@ -997,7 +950,7 @@ Referências locais já presentes no repositório:
 - `docs/debitos_tecnicos.md` — débito técnico
 - `docs/DAS.md` — Design Approval Sheet derivado da documentação arquitetural
 - `docs/adr/README.md` — índice das ADRs e associação textual a PRs simulados
-- `docs/Fase1-DDD.drawio.png` — diagrama DDD
+- Diagrama DDD e demais visões arquiteturais documentadas em PlantUML inline nesta documentação
 - Arquivos de domínio e infraestrutura:
   - `src/domain/entities/ordem-servico.ts`
   - `src/domain/entities/item-ordem-servico.ts`
@@ -1026,18 +979,3 @@ Referências locais já presentes no repositório:
 Conforme descrito em `docs/contexto.md`, o sistema foi desenvolvido como MVP contemplando requisitos obrigatórios com níveis diferentes de profundidade, priorizando o domínio central e a entrega funcional ponta a ponta.
 
 ---
-
-## Checklists Rápidos (para entrega)
-
-- [ ] Documento preenchido em 100% (TODOs resolvidos)
-- [ ] Diagrama(s) anexados (Event Storming, C4, HLD)
-- [ ] Endpoints documentados (OpenAPI/Swagger)
-- [ ] Instruções de execução e Docker presentes
-- [ ] Testes críticos (E2E) funcionando
-- [ ] Vulnerability scan rodado e analisado
-
----
-
-## Notas finais
-
-Este documento foi consolidado com os artefatos finais do MVP. Para evolução futura, manter sincronização entre `DOCUMENTACAO_ARQUITETURA.md`, `docs/DAS.md` e `docs/adr/`.
