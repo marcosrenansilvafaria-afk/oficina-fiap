@@ -22,6 +22,7 @@ import { BuscarCliente } from '../../application/use-cases/buscar-cliente';
 import { clienteRepo } from '../../infraestructure/singletons';
 import { CriarClienteDto } from './dto/cliente.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { getErrorMessage } from './error-message';
 
 @Controller('clientes')
 @ApiTags('clientes')
@@ -56,8 +57,8 @@ export class ClienteController {
         documento,
       });
       return cliente;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 

@@ -25,6 +25,7 @@ import { AjustarEstoquePeca } from '../../application/use-cases/ajustar-estoque-
 import { pecaRepo } from '../../infraestructure/singletons';
 import { AjustarEstoquePecaDto, CriarPecaDto } from './dto/peca.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { getErrorMessage } from './error-message';
 
 @Controller('pecas')
 @ApiTags('pecas')
@@ -48,8 +49,8 @@ export class PecaController {
         estoque: body.estoque,
       });
       return p;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 
@@ -82,8 +83,8 @@ export class PecaController {
       throw new BadRequestException('delta numérico obrigatório');
     try {
       return this.ajustarEstoque.execute(id, delta);
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 }

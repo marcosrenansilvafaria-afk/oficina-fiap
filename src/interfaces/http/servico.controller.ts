@@ -23,6 +23,7 @@ import { ListarServico } from '../../application/use-cases/listar-servico';
 import { servicoRepo } from '../../infraestructure/singletons';
 import { CriarServicoDto } from './dto/servico.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { getErrorMessage } from './error-message';
 
 @Controller('servicos')
 @ApiTags('servicos')
@@ -44,8 +45,8 @@ export class ServicoController {
         preco: body.preco,
       });
       return s;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 

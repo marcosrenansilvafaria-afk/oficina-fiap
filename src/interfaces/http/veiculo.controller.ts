@@ -22,6 +22,7 @@ import { BuscarVeiculo } from '../../application/use-cases/buscar-veiculo';
 import { veiculoRepo } from '../../infraestructure/singletons';
 import { CriarVeiculoDto } from './dto/veiculo.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { getErrorMessage } from './error-message';
 
 @Controller('veiculos')
 @ApiTags('veiculos')
@@ -69,8 +70,8 @@ export class VeiculoController {
         ano: Number(body.ano),
       });
       return veiculo;
-    } catch (err: any) {
-      throw new BadRequestException(err.message);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
   }
 

@@ -120,10 +120,10 @@ Controle simplificado suficiente para MVP
 
 ### Implementação:
 
-⚠️ Simplificada / Não priorizada  
+✔ Implementação simples com timestamps e cálculo de média
 
 💡 Justificativa:
-Baixo impacto no fluxo principal
+Suficiente para o MVP e rastreia o comportamento do fluxo principal
 
 ---
 
@@ -177,10 +177,10 @@ Validação básica suficiente para MVP
 - Testes de domínio
 - Testes de fluxo principal
 
-✔ Implementação parcial  
+✔ Implementação ampliada com testes unitários e E2E dos fluxos críticos
 
 💡 Justificativa:
-Foco nos fluxos críticos ao invés de cobertura total
+Foco nos fluxos críticos sem tentar cobrir cenários fora do escopo do MVP
 
 ---
 
@@ -188,10 +188,10 @@ Foco nos fluxos críticos ao invés de cobertura total
 
 - Autenticação em endpoints administrativos
 
-⚠️ Implementação simplificada ou parcial  
+✔ Implementação simplificada com JWT + RBAC
 
 💡 Justificativa:
-Não é crítico para validação do domínio no MVP
+Suficiente para o cenário do MVP, mantendo payload mínimo e controle por perfil
 
 ---
 
@@ -210,7 +210,7 @@ Foco na modelagem de domínio e simplicidade
 
 - Containerização da aplicação
 
-⚠️ Implementação básica ou não priorizada  
+✔ Implementação configurada com Docker e docker-compose
 
 ---
 
@@ -218,7 +218,7 @@ Foco na modelagem de domínio e simplicidade
 
 - Documentação da API
 
-✔ Implementação opcional  
+✔ Implementação disponível e publicada na API
 
 ---
 
@@ -230,6 +230,20 @@ Foco na modelagem de domínio e simplicidade
 - Application → casos de uso
 - Interface → controllers HTTP
 - Infrastructure → persistência
+
+```plantuml
+@startuml
+!theme materia
+package Domain
+package Application
+package Interface
+package Infrastructure
+
+Interface --> Application
+Application --> Domain
+Infrastructure --> Application
+@enduml
+```
 
 ---
 

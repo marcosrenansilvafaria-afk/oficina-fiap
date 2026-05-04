@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { seedInMemoryRepositories } from './infraestructure/singletons';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,6 +28,15 @@ async function bootstrap() {
     },
   });
 
+  if (process.env.SEED_DATA === 'true') {
+    seedInMemoryRepositories();
+  }
+
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  const message =
+    error instanceof Error ? error.message : 'Erro desconhecido ao iniciar API';
+  console.error(message);
+  process.exit(1);
+});

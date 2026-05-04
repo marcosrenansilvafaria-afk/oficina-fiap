@@ -1,5 +1,7 @@
 @startuml C3_Oficina_Component
+!ROUNDED_STYLE=1
 !NEW_C4_STYLE=1
+!theme C4_superhero from https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/themes
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 LAYOUT_LEFT_RIGHT()
 
