@@ -143,4 +143,4 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 - Débitos técnicos: [docs/debitos_tecnicos.md](docs/debitos_tecnicos.md)
 - Relatório Sonar: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
 - Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
-- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.mp4](./video/apresentacao-fase-1.txt)
+- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.mp4](docs/video/apresentacao-fase-1.txt)
