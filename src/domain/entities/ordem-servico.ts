@@ -13,6 +13,8 @@ export class OrdemServico {
   private status: StatusOrdemServico;
   private itens: ItemOrdemServico[] = [];
   private valorTotal: number = 0;
+  private readonly criadaEm: Date;
+  private finalizadaEm?: Date;
 
   constructor(
     public readonly id: string,
@@ -20,6 +22,7 @@ export class OrdemServico {
     public readonly veiculoId?: string,
   ) {
     this.status = 'RECEBIDA';
+    this.criadaEm = new Date(Date.now());
   }
 
   // 🔹 Adicionar item
@@ -80,6 +83,7 @@ export class OrdemServico {
     }
 
     this.status = 'FINALIZADA';
+    this.finalizadaEm = new Date(Date.now());
   }
 
   // 🔹 Entregar veículo
@@ -102,5 +106,13 @@ export class OrdemServico {
 
   getValorTotal() {
     return this.valorTotal;
+  }
+
+  getCriadaEm() {
+    return this.criadaEm;
+  }
+
+  getFinalizadaEm() {
+    return this.finalizadaEm;
   }
 }

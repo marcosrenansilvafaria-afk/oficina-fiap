@@ -129,17 +129,26 @@ describe('OrdemServicoController', () => {
     expect(() => controller.aprovar(created.id)).toThrow(BadRequestException);
   });
 
-  it('deve executar, finalizar, entregar e calcular tempo medio', () => {
+  it('deve executar, finalizar, consultar SLA e entregar', () => {
     const controller = criarController();
+    const nowSpy = jest.spyOn(Date, 'now');
+
+    // 1) criação da OS (criadaEm)
+    // 2) iniciar execução (inicioExecucao)
+    // 3) finalizar (tempoExecucaoMs)
+    // 4) finalizar (finalizadaEm)
+    nowSpy
+      .mockReturnValueOnce(1000)
+      .mockReturnValueOnce(2000)
+      .mockReturnValueOnce(5000)
+      .mockReturnValueOnce(5000);
+
     const created = controller.criar({} as CriarOrdemServicoDto);
 
     controller.diagnostico(created.id);
     controller.adicionar(created.id, itemServicoPadrao());
     controller.gerar(created.id);
     controller.aprovar(created.id);
-
-    const nowSpy = jest.spyOn(Date, 'now');
-    nowSpy.mockReturnValueOnce(1000).mockReturnValueOnce(4000);
 
     const emExecucao = controller.executar(created.id);
     expect(emExecucao.getStatus()).toBe('EM_EXECUCAO');
@@ -151,12 +160,13 @@ describe('OrdemServicoController', () => {
     expect(finalizada.status).toBe('FINALIZADA');
     expect(finalizada.tempoExecucaoMs).toBe(3000);
 
-    const metricas = controller.tempoMedio() as {
-      totalExecucoesConcluidas: number;
-      tempoMedioExecucaoMs: number;
+    const sla = controller.slaAtendimento() as {
+      totalOrdensConcluidas: number;
+      slaMedioAtendimentoMs: number;
     };
-    expect(metricas.totalExecucoesConcluidas).toBe(1);
-    expect(metricas.tempoMedioExecucaoMs).toBe(3000);
+    expect(sla.totalOrdensConcluidas).toBe(1);
+    // criação (1000) -> finalização (5000)
+    expect(sla.slaMedioAtendimentoMs).toBe(4000);
 
     const entregue = controller.entregar(created.id);
     expect(entregue.getStatus()).toBe('ENTREGUE');
