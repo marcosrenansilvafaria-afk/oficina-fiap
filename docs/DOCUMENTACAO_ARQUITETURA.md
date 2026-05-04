@@ -1,19 +1,33 @@
-# Documentação de Arquitetura e Entrega - Projeto Oficina (MVP)
+# Documentação de Arquitetura — Oficina mecânica (MVP)
 
-Documento em evolução incremental, com foco em decisões arquiteturais e rastreabilidade técnica.
+- Projeto: Tech challenge — Software Architecture — Fase 1
+- Autor: Marcos Renan Silva Faria (RM373221) — Discord: natsumetks
+- Data: 2026-05-01
+
+## Sumário
+
+- [1. Introdução](#1-introdução)
+- [2. Requisitos](#2-requisitos)
+- [3. Modelagem de Domínio (DDD)](#3-modelagem-de-domínio-ddd)
+- [4. Arquitetura (Clean Architecture)](#4-arquitetura-clean-architecture)
+- [5. API](#5-api)
+- [6. Segurança](#6-segurança)
+- [7. Testes](#7-testes)
+
+## Entregáveis
+
+- Drawio (online): https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing
+- Drawio (local): [../oficina-mecanica-drawio.drawio](../oficina-mecanica-drawio.drawio)
+- DAS: [DAS.md](DAS.md)
+- Contexto: [contexto.md](contexto.md)
+- Débitos técnicos: [debitos_tecnicos.md](debitos_tecnicos.md)
+- Relatório Sonar: [relatorios/sonar-relatorio-final.md](relatorios/sonar-relatorio-final.md)
+- README: [../README.md](../README.md)
+- Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
+- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](./video/apresentacao-fase-1.txt)
+
 
 ---
-## Sumario
-  
-  TO DO: Criar sumario;
-
-  Entregraveis:
-  [Drawio](https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing)
-  [Drawio - local](./oficina-mecanica-drawio.drawio)
-
-
-
-
 
 # 1. Introdução
 
@@ -449,8 +463,6 @@ Justificativa de modelagem: no diagrama C2, a persistência atual é representad
 - Endpoints protegidos usam `Authorization: Bearer <token>`.
 - Validação ocorre com `JwtAuthGuard` + `JwtStrategy` e autorização com `RolesGuard`.
 
-#Roles: TO DO (definir papéis e escopo de acesso para endpoints administrativos e operacionais).
-
 ![Fluxo de Autenticacao JWT](./diagram/image/fluxoAutenticacao.png)
 
 ## 4.3 Low Level Design (LLD)
@@ -468,7 +480,6 @@ src/
   infraestructure/
     in-memory-*.ts
 ```
-[Exemplo de estrutura de código](./diagram/image/lld-strucuture.png)
 
 
 - Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases), Interfaces (adapters), Infrastructure (repositorios, singletons).
@@ -479,11 +490,24 @@ Aderência arquitetural e lacunas atuais:
 - O domínio concentra regras de negócio de ciclo de vida da OS, porém há oportunidades de reforçar isolamento por interfaces (ports) para persistência.
 - A evolução recomendada é reduzir acoplamento entre casos de uso e implementações concretas de repositório por contratos explícitos.
 - Para produção, recomenda-se consolidar estratégia de erros de domínio -> erros HTTP de forma padronizada.
+![Exemplo de estrutura de código](./diagram/image/lld-strucuture.png)
 
 ## 4.4 Decisões Arquiteturais (ADR)
 
 Este projeto registra decisões arquiteturais importantes como ADRs (Architecture Decision Records). As ADRs foram organizadas em arquivos individuais no diretório `docs/adr/`.
-TO DO TABELA LINK ADR:
+
+Índice de ADRs:
+
+- [ADR-001-ddd-modelagem-dominio.md](adr/ADR-001-ddd-modelagem-dominio.md) — modelagem inicial do domínio com DDD.
+- [ADR-002-clean-architecture-camadas.md](adr/ADR-002-clean-architecture-camadas.md) — separação por camadas e responsabilidades.
+- [ADR-003-persistencia-in-memory-mvp.md](adr/ADR-003-persistencia-in-memory-mvp.md) — persistência in-memory no MVP.
+- [ADR-004-nestjs-backend.md](adr/ADR-004-nestjs-backend.md) — adoção de NestJS + TypeScript.
+- [ADR-005-monolito-modular-mvp.md](adr/ADR-005-monolito-modular-mvp.md) — monólito modular como estratégia inicial.
+- [ADR-006-estrategia-persistencia-pos-mvp.md](adr/ADR-006-estrategia-persistencia-pos-mvp.md) — estratégia de evolução de persistência.
+- [ADR-007-jwt-rbac.md](adr/ADR-007-jwt-rbac.md) — JWT e RBAC no MVP.
+- [ADR-008-estrategia-testes-quality-gate.md](adr/ADR-008-estrategia-testes-quality-gate.md) — estratégia de testes e quality gate.
+- [ADR-009-versionamento-api.md](adr/ADR-009-versionamento-api.md) — versionamento da API.
+- [ADR-010-observabilidade-minima-erros.md](adr/ADR-010-observabilidade-minima-erros.md) — observabilidade mínima e tratamento de erros.
 ---
 
 # 5. API
@@ -538,8 +562,8 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
 - `GET /os`
   - Descrição: lista OS.
 
-- `GET /os/tempo-medio`
-  - Descrição: métrica de tempo médio das execuções.
+- `GET /os/sla-atendimento`
+  - Descrição: métrica de SLA médio (criação -> finalização), considerando apenas OS em status `FINALIZADA`.
   - Respostas comuns:
     - `200`: métrica calculada.
 
@@ -639,10 +663,12 @@ Ordem recomendada para demo (fluxo lógico da OS):
   - `POST /os/:id/executar`
 9. Finalização (MECANICO):
   - `POST /os/:id/finalizar`
-10. Entrega (ATENDENTE):
+10. Métricas (público):
+  - `GET /os/sla-atendimento`
+11. Entrega (ATENDENTE):
   - `POST /os/:id/entregar`
-11. Consultas e métricas (público):
-  - `GET /os/:id`, `GET /os`, `GET /os/tempo-medio`
+12. Consultas (público):
+  - `GET /os/:id`, `GET /os`
 
 Checklist rápido da demo (para apresentação):
 
@@ -653,7 +679,7 @@ Checklist rápido da demo (para apresentação):
   - IDs seed (fixos): cliente `cli-001`, veículo `vei-001`, serviço `srv-001`, peça `pec-001`.
 - Criar OS e seguir o fluxo completo até `ENTREGUE`.
 - Demonstrar validação de regra: tentar pular um estado e mostrar o erro.
-- Encerrar mostrando consulta da OS e métrica de tempo médio.
+- Encerrar mostrando consulta da OS e métrica de SLA de atendimento.
 
 Observações importantes:
 
@@ -671,6 +697,15 @@ Estado atual (MVP):
 - Autorização RBAC básica por perfil (`ADMIN`, `MECANICO`, `ATENDENTE`) aplicada na camada HTTP com guards.
 - Validação de entrada implementada de forma pontual nos controllers/use-cases.
 - Persistência em memória (sem dados sensíveis persistidos em disco pela aplicação).
+
+## 6.1 Validações de entrada (CPF/CNPJ e Placa)
+
+Validações implementadas no MVP (camada HTTP), focadas em evitar dados inválidos na entrada do sistema:
+
+- Documento (Cliente): aceita CPF (11 dígitos) e CNPJ (14 dígitos), validando tamanho e formato numérico.
+- Placa (Veículo): valida padrões de placa antiga e Mercosul, normalizando para maiúsculas (quando aplicável).
+
+Observação: além dessas validações, transições de status e pré-condições do fluxo de OS são validadas por regras de domínio.
 
 Fluxo de autenticação implementado:
 
@@ -863,7 +898,7 @@ Critérios mínimos para aceite de PR:
 
 ### 10.1 Relatório SonarQube final
 
-Relatório dedicado: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
+Relatório dedicado: [docs/relatorios/sonar-relatorio-final.md](./relatorios/sonar-relatorio-final.md)
 
 Resumo da última análise validada durante a sessão:
 
@@ -937,35 +972,7 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 ---
 
-# 12. Entregáveis
-
-- Repositório: [marcosrenansilvafaria-afk/oficina-fiap](https://github.com/marcosrenansilvafaria-afk/oficina-fiap)
-- Documentação: `DOCUMENTACAO_ARQUITETURA.md` (este arquivo) + `docs/` (links abaixo)
-- Participantes:
-  - Informação não formalizada no repositório final.
-
-Referências locais já presentes no repositório:
-
-- `docs/contexto.md` — contexto do domínio
-- `docs/debitos_tecnicos.md` — débito técnico
-- `docs/DAS.md` — Design Approval Sheet derivado da documentação arquitetural
-- `docs/adr/README.md` — índice das ADRs e associação textual a PRs simulados
-- Diagrama DDD e demais visões arquiteturais documentadas em PlantUML inline nesta documentação
-- Arquivos de domínio e infraestrutura:
-  - `src/domain/entities/ordem-servico.ts`
-  - `src/domain/entities/item-ordem-servico.ts`
-  - `src/domain/entities/cliente.ts`
-  - `src/domain/entities/peca.ts`
-  - `src/domain/entities/servico.ts`
-  - `src/domain/entities/veiculo.ts`
-  - `src/application/use-cases/` (coleção de use-cases)
-  - `src/interfaces/http/` (controllers)
-  - `src/infraestructure/in-memory-*.ts`
-
----
-
-
-# 13. Considerações Finais
+# 12. Considerações Finais
 
 - **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
 - **Limitações conhecidas:** persistência em memória (não persistente entre execuções), autenticação sem refresh token no MVP, análise de segurança com fallback conceitual quando Sonar não estiver disponível e monitoramento simplificado por timestamps no fluxo da OS.

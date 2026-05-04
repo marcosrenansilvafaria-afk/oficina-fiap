@@ -164,6 +164,14 @@ describe('Workflow e2e', () => {
     const finalizarBody = bodyAsRecord(finalizarRes);
     expect(finalizarBody.tempoExecucaoMs).not.toBeNull();
 
+    // SLA (criacao -> finalizacao) deve ser consultado antes de entregar,
+    // pois a métrica considera apenas OS em status FINALIZADA (exclui ENTREGUE).
+    const slaRes = await api().get('/os/sla-atendimento').send();
+    okStatus(slaRes);
+    expect(
+      readNumber(bodyAsRecord(slaRes), 'totalOrdensConcluidas'),
+    ).toBeGreaterThanOrEqual(1);
+
     // entregar
     const entregarRes = await api()
       .post(`/os/${osId}/entregar`)
@@ -180,10 +188,6 @@ describe('Workflow e2e', () => {
       'ENVIADO',
     );
 
-    const tempoRes = await api().get('/os/tempo-medio').send();
-    okStatus(tempoRes);
-    expect(
-      readNumber(bodyAsRecord(tempoRes), 'totalExecucoesConcluidas'),
-    ).toBeGreaterThanOrEqual(1);
+    // (após entrega a OS não entra no SLA por decisão de escopo)
   }, 20000);
 });

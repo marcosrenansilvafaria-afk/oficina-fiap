@@ -20,9 +20,7 @@ export function seedInMemoryRepositories() {
   }
 
   if (!veiculoRepo.getById('vei-001')) {
-    veiculoRepo.save(
-      new Veiculo('vei-001', 'ABC1D23', 'Civic', 'Honda', 2022),
-    );
+    veiculoRepo.save(new Veiculo('vei-001', 'ABC1D23', 'Civic', 'Honda', 2022));
   }
 
   if (!servicoRepo.getById('srv-001')) {

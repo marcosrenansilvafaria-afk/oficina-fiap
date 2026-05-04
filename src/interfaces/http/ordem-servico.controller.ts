@@ -66,8 +66,6 @@ export class OrdemServicoController {
   >();
   private execucaoIniciadaEm = new Map<string, number>();
   private execucaoConcluidaMs = new Map<string, number>();
-  private totalExecucoesConcluidas = 0;
-  private totalTempoExecucaoMs = 0;
 
   @ApiOperation({ summary: 'Criar ordem de servico' })
   @ApiBody({ type: CriarOrdemServicoDto })
@@ -259,13 +257,12 @@ export class OrdemServicoController {
       if (inicioExecucao) {
         tempoExecucaoMs = Date.now() - inicioExecucao;
         this.execucaoConcluidaMs.set(id, tempoExecucaoMs);
-        this.totalExecucoesConcluidas += 1;
-        this.totalTempoExecucaoMs += tempoExecucaoMs;
         this.execucaoIniciadaEm.delete(id);
       }
 
       return {
-        ...result,
+        id: result.id,
+        status: result.getStatus(),
         tempoExecucaoMs,
       };
     } catch (err: unknown) {
@@ -273,18 +270,37 @@ export class OrdemServicoController {
     }
   }
 
-  @ApiOperation({ summary: 'Consultar tempo medio de execucao das OS' })
-  @ApiOkResponse({ description: 'Métricas simples de tempo de execução' })
-  @Get('tempo-medio')
-  tempoMedio() {
-    const tempoMedioExecucaoMs =
-      this.totalExecucoesConcluidas === 0
+  @ApiOperation({
+    summary: 'Consultar SLA medio de atendimento (criacao -> finalizacao)',
+  })
+  @ApiOkResponse({
+    description:
+      'Métrica de SLA de atendimento (intervalo entre criação e finalização). Considera apenas OS em status FINALIZADA.',
+  })
+  @Get('sla-atendimento')
+  slaAtendimento() {
+    const ordensConcluidas = this.repo
+      .all()
+      .filter((os) => os.getStatus() === 'FINALIZADA');
+
+    const totalOrdensConcluidas = ordensConcluidas.length;
+    const totalSlaMs = ordensConcluidas.reduce((acc, os) => {
+      const criadaEm = os.getCriadaEm();
+      const finalizadaEm = os.getFinalizadaEm();
+      if (!finalizadaEm) {
+        return acc;
+      }
+      return acc + (finalizadaEm.getTime() - criadaEm.getTime());
+    }, 0);
+
+    const slaMedioAtendimentoMs =
+      totalOrdensConcluidas === 0
         ? 0
-        : Math.round(this.totalTempoExecucaoMs / this.totalExecucoesConcluidas);
+        : Math.round(totalSlaMs / totalOrdensConcluidas);
 
     return {
-      totalExecucoesConcluidas: this.totalExecucoesConcluidas,
-      tempoMedioExecucaoMs,
+      totalOrdensConcluidas,
+      slaMedioAtendimentoMs,
     };
   }
 
