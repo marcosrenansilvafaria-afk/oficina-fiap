@@ -1,36 +1,34 @@
 import { OrdemServico } from '../../domain/entities/ordem-servico';
+import { IOrdemRepository } from '../../domain/repositories/ordem-repository.interface';
+import { IClienteRepository } from '../../domain/repositories/cliente-repository.interface';
+import { IVeiculoRepository } from '../../domain/repositories/veiculo-repository.interface';
 import { generateId } from '../../utils/id';
-import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
-import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
-import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
 
-type Input = {
-  clienteId?: string;
-  veiculoId?: string;
-};
+type Input = { clienteId?: string; veiculoId?: string };
 
 export class CriarOrdemServico {
   constructor(
-    private repo: InMemoryOrdemRepository,
-    private clienteRepo?: InMemoryClienteRepository,
-    private veiculoRepo?: InMemoryVeiculoRepository,
+    private repo: IOrdemRepository,
+    private clienteRepo?: IClienteRepository,
+    private veiculoRepo?: IVeiculoRepository,
   ) {}
 
-  execute(input?: Input) {
+  async execute(input?: Input) {
     const clienteId = input?.clienteId;
     const veiculoId = input?.veiculoId;
 
-    if (clienteId && this.clienteRepo && !this.clienteRepo.getById(clienteId)) {
-      throw new Error('clienteId inválido');
+    if (clienteId && this.clienteRepo) {
+      const cliente = await this.clienteRepo.getById(clienteId);
+      if (!cliente) throw new Error('clienteId inválido');
     }
 
-    if (veiculoId && this.veiculoRepo && !this.veiculoRepo.getById(veiculoId)) {
-      throw new Error('veiculoId inválido');
+    if (veiculoId && this.veiculoRepo) {
+      const veiculo = await this.veiculoRepo.getById(veiculoId);
+      if (!veiculo) throw new Error('veiculoId inválido');
     }
 
-    const id = generateId();
-    const os = new OrdemServico(id, clienteId, veiculoId);
-    this.repo.save(os);
+    const os = new OrdemServico(generateId(), clienteId, veiculoId);
+    await this.repo.save(os);
     return os;
   }
 }

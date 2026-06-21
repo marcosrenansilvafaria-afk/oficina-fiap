@@ -1,14 +1,13 @@
-import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
+import { IOrdemRepository } from '../../domain/repositories/ordem-repository.interface';
 
 export class AprovarOrcamento {
-  constructor(private repo: InMemoryOrdemRepository) {}
+  constructor(private repo: IOrdemRepository) {}
 
-  execute(id: string) {
-    const os = this.repo.getById(id);
+  async execute(id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new Error('OS não encontrada');
-
     os.aprovarOrcamento();
-    this.repo.save(os);
+    await this.repo.save(os);
     return os;
   }
 }

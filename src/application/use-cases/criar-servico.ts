@@ -1,20 +1,16 @@
 import { Servico } from '../../domain/entities/servico';
+import { IServicoRepository } from '../../domain/repositories/servico-repository.interface';
 import { generateId } from '../../utils/id';
-import { InMemoryServicoRepository } from '../../infraestructure/in-memory-servico-repository';
 
-type Input = {
-  nome: string;
-  preco: number;
-};
+type Input = { nome: string; preco: number };
 
 export class CriarServico {
-  constructor(private repo: InMemoryServicoRepository) {}
+  constructor(private repo: IServicoRepository) {}
 
-  execute(input: Input) {
+  async execute(input: Input) {
     if (!input || !input.nome) throw new Error('nome é obrigatório');
-    const id = generateId();
-    const servico = new Servico(id, input.nome, input.preco || 0);
-    this.repo.save(servico);
+    const servico = new Servico(generateId(), input.nome, input.preco || 0);
+    await this.repo.save(servico);
     return servico;
   }
 }
