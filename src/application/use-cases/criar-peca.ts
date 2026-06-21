@@ -1,21 +1,16 @@
 import { Peca } from '../../domain/entities/peca';
+import { IPecaRepository } from '../../domain/repositories/peca-repository.interface';
 import { generateId } from '../../utils/id';
-import { InMemoryPecaRepository } from '../../infraestructure/in-memory-peca-repository';
 
-type Input = {
-  nome: string;
-  preco: number;
-  estoque?: number;
-};
+type Input = { nome: string; preco: number; estoque?: number };
 
 export class CriarPeca {
-  constructor(private repo: InMemoryPecaRepository) {}
+  constructor(private repo: IPecaRepository) {}
 
-  execute(input: Input) {
+  async execute(input: Input) {
     if (!input || !input.nome) throw new Error('nome é obrigatório');
-    const id = generateId();
-    const peca = new Peca(id, input.nome, input.preco || 0, input.estoque || 0);
-    this.repo.save(peca);
+    const peca = new Peca(generateId(), input.nome, input.preco || 0, input.estoque || 0);
+    await this.repo.save(peca);
     return peca;
   }
 }

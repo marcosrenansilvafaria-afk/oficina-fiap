@@ -1,22 +1,21 @@
 import { Veiculo } from '../../domain/entities/veiculo';
+import { IVeiculoRepository } from '../../domain/repositories/veiculo-repository.interface';
 import { generateId } from '../../utils/id';
-import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veiculo-repository';
 
 type Input = { placa: string; modelo: string; marca: string; ano: number };
 
 export class CriarVeiculo {
-  constructor(private repo: InMemoryVeiculoRepository) {}
+  constructor(private repo: IVeiculoRepository) {}
 
-  execute(input?: Input) {
-    const id = generateId();
+  async execute(input?: Input) {
     const veiculo = new Veiculo(
-      id,
+      generateId(),
       input?.placa || '',
       input?.modelo || '',
       input?.marca || '',
       input?.ano || 0,
     );
-    this.repo.save(veiculo);
+    await this.repo.save(veiculo);
     return veiculo;
   }
 }

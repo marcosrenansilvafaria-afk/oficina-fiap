@@ -1,10 +1,10 @@
-import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
+import { IOrdemRepository } from '../../domain/repositories/ordem-repository.interface';
 
 export class BuscarOrdemServico {
-  constructor(private repo: InMemoryOrdemRepository) {}
+  constructor(private repo: IOrdemRepository) {}
 
-  execute(id: string) {
-    const os = this.repo.getById(id);
+  async execute(id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new Error('OS não encontrada');
     return os;
   }

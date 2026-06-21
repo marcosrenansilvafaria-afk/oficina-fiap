@@ -1,9 +1,9 @@
-import { InMemoryPecaRepository } from '../../infraestructure/in-memory-peca-repository';
+import { IPecaRepository } from '../../domain/repositories/peca-repository.interface';
 
 export class ListarPeca {
-  constructor(private repo: InMemoryPecaRepository) {}
+  constructor(private repo: IPecaRepository) {}
 
-  execute() {
+  async execute() {
     return this.repo.all();
   }
 }

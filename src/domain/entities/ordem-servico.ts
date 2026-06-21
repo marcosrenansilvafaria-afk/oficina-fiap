@@ -13,7 +13,7 @@ export class OrdemServico {
   private status: StatusOrdemServico;
   private itens: ItemOrdemServico[] = [];
   private valorTotal: number = 0;
-  private readonly criadaEm: Date;
+  private criadaEm: Date;
   private finalizadaEm?: Date;
 
   constructor(
@@ -93,6 +93,26 @@ export class OrdemServico {
     }
 
     this.status = 'ENTREGUE';
+  }
+
+  // 🔹 Reconstitui a entidade a partir de dados de persistência (sem passar pela máquina de estados)
+  static reconstitute(
+    id: string,
+    clienteId: string,
+    veiculoId: string,
+    status: StatusOrdemServico,
+    itens: ItemOrdemServico[],
+    valorTotal: number,
+    criadaEm: Date,
+    finalizadaEm?: Date,
+  ): OrdemServico {
+    const os = new OrdemServico(id, clienteId, veiculoId);
+    os.status = status;
+    os.itens = itens;
+    os.valorTotal = valorTotal;
+    os.criadaEm = criadaEm;
+    os.finalizadaEm = finalizadaEm;
+    return os;
   }
 
   // 🔹 getters (boa prática)

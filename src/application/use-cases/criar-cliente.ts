@@ -1,31 +1,27 @@
 import { Cliente } from '../../domain/entities/cliente';
+import { IClienteRepository } from '../../domain/repositories/cliente-repository.interface';
 import { generateId } from '../../utils/id';
-import { InMemoryClienteRepository } from '../../infraestructure/in-memory-cliente-repository';
 
 type Input = { nome: string; documento: string };
 
 export class CriarCliente {
-  constructor(private repo: InMemoryClienteRepository) {}
+  constructor(private repo: IClienteRepository) {}
 
-  execute(input: Input) {
-    // normalize documento: digits only
+  async execute(input: Input) {
     const documento = String(input.documento).replace(/\D/g, '');
 
     if (documento.length !== 11 && documento.length !== 14) {
       throw new Error('documento inválido (esperado CPF/CNPJ)');
     }
 
-    // business rule: no duplicate documento
-    const exists = this.repo
-      .all()
-      .some((c) => String(c.documento).replace(/\D/g, '') === documento);
-    if (exists) {
-      throw new Error('Cliente com este documento já cadastrado');
-    }
+    const todos = await this.repo.all();
+    const exists = todos.some(
+      (c) => String(c.documento).replace(/\D/g, '') === documento,
+    );
+    if (exists) throw new Error('Cliente com este documento já cadastrado');
 
-    const id = generateId();
-    const cliente = new Cliente(id, input.nome, documento);
-    this.repo.save(cliente);
+    const cliente = new Cliente(generateId(), input.nome, documento);
+    await this.repo.save(cliente);
     return cliente;
   }
 }

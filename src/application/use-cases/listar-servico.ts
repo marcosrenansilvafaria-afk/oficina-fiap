@@ -1,9 +1,9 @@
-import { InMemoryServicoRepository } from '../../infraestructure/in-memory-servico-repository';
+import { IServicoRepository } from '../../domain/repositories/servico-repository.interface';
 
 export class ListarServico {
-  constructor(private repo: InMemoryServicoRepository) {}
+  constructor(private repo: IServicoRepository) {}
 
-  execute() {
+  async execute() {
     return this.repo.all();
   }
 }
