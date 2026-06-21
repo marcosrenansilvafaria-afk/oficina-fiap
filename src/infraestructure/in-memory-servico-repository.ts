@@ -1,21 +1,22 @@
 import { Servico } from '../domain/entities/servico';
+import { IServicoRepository } from '../domain/repositories/servico-repository.interface';
 
-export class InMemoryServicoRepository {
+export class InMemoryServicoRepository implements IServicoRepository {
   private store = new Map<string, Servico>();
 
-  save(servico: Servico) {
+  async save(servico: Servico): Promise<void> {
     this.store.set(servico.id, servico);
   }
 
-  getById(id: string): Servico | undefined {
-    return this.store.get(id);
+  async getById(id: string): Promise<Servico | null> {
+    return this.store.get(id) ?? null;
   }
 
-  all(): Servico[] {
+  async all(): Promise<Servico[]> {
     return Array.from(this.store.values());
   }
 
-  clear() {
+  async clear(): Promise<void> {
     this.store.clear();
   }
 }

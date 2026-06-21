@@ -41,14 +41,13 @@ export class PecaController {
   @ApiBody({ type: CriarPecaDto })
   @ApiOkResponse({ description: 'Peça criada com sucesso' })
   @Post()
-  criar(@Body() body: CriarPecaDto) {
+  async criar(@Body() body: CriarPecaDto) {
     try {
-      const p = this.criarPeca.execute({
+      return await this.criarPeca.execute({
         nome: body.nome,
         preco: body.preco,
         estoque: body.estoque,
       });
-      return p;
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -59,8 +58,8 @@ export class PecaController {
   @ApiOkResponse({ description: 'Peça encontrada' })
   @ApiNotFoundResponse({ description: 'Peça não encontrada' })
   @Get(':id')
-  buscar(@Param('id') id: string) {
-    const p = pecaRepo.getById(id);
+  async buscar(@Param('id') id: string) {
+    const p = await pecaRepo.getById(id);
     if (!p) throw new NotFoundException('Peça não encontrada');
     return this.buscarPeca.execute(p);
   }
@@ -68,7 +67,7 @@ export class PecaController {
   @ApiOperation({ summary: 'Listar pecas' })
   @ApiOkResponse({ description: 'Lista de pecas retornada com sucesso' })
   @Get()
-  listar() {
+  async listar() {
     return this.listarPeca.execute();
   }
 
@@ -77,12 +76,12 @@ export class PecaController {
   @ApiBody({ type: AjustarEstoquePecaDto })
   @ApiOkResponse({ description: 'Estoque ajustado com sucesso' })
   @Patch(':id/estoque')
-  ajustar(@Param('id') id: string, @Body() body: AjustarEstoquePecaDto) {
+  async ajustar(@Param('id') id: string, @Body() body: AjustarEstoquePecaDto) {
     const delta = Number(body?.delta);
     if (isNaN(delta))
       throw new BadRequestException('delta numérico obrigatório');
     try {
-      return this.ajustarEstoque.execute(id, delta);
+      return await this.ajustarEstoque.execute(id, delta);
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }

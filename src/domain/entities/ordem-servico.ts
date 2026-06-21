@@ -67,6 +67,15 @@ export class OrdemServico {
     this.status = 'APROVADA';
   }
 
+  // 🔹 Recusar orçamento (cliente reprovou) — reabre para novo diagnóstico
+  recusarOrcamento() {
+    if (this.status !== 'AGUARDANDO_APROVACAO') {
+      throw new Error('Orçamento não está disponível para recusa');
+    }
+
+    this.status = 'EM_DIAGNOSTICO';
+  }
+
   // 🔹 Iniciar execução
   iniciarExecucao() {
     if (this.status !== 'APROVADA') {

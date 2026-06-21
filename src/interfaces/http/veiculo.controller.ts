@@ -54,7 +54,7 @@ export class VeiculoController {
   @ApiBody({ type: CriarVeiculoDto })
   @ApiOkResponse({ description: 'Veiculo criado com sucesso' })
   @Post()
-  criar(@Body() body: CriarVeiculoDto) {
+  async criar(@Body() body: CriarVeiculoDto) {
     if (!body || !body.placa || !body.modelo || !body.marca || !body.ano) {
       throw new BadRequestException(
         'placa, modelo, marca e ano são obrigatórios',
@@ -63,13 +63,12 @@ export class VeiculoController {
 
     try {
       const placa = this.validarPlaca(body.placa);
-      const veiculo = this.criarVeiculo.execute({
+      return await this.criarVeiculo.execute({
         placa,
         modelo: body.modelo,
         marca: body.marca,
         ano: Number(body.ano),
       });
-      return veiculo;
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -80,8 +79,8 @@ export class VeiculoController {
   @ApiOkResponse({ description: 'Veiculo encontrado' })
   @ApiNotFoundResponse({ description: 'Veículo não encontrado' })
   @Get(':id')
-  buscar(@Param('id') id: string) {
-    const veiculo = this.repo.getById(id);
+  async buscar(@Param('id') id: string) {
+    const veiculo = await this.repo.getById(id);
     if (!veiculo) throw new NotFoundException('Veículo não encontrado');
     return this.buscarVeiculo.execute(veiculo);
   }
@@ -89,7 +88,7 @@ export class VeiculoController {
   @ApiOperation({ summary: 'Listar veiculos' })
   @ApiOkResponse({ description: 'Lista de veiculos retornada com sucesso' })
   @Get()
-  listar() {
+  async listar() {
     return this.repo.all();
   }
 }

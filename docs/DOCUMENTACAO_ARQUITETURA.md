@@ -1,8 +1,8 @@
 # Documentação de Arquitetura — Oficina mecânica (MVP)
 
-- Projeto: Tech challenge — Software Architecture — Fase 1
+- Projeto: Tech challenge — Software Architecture — Fase 2
 - Autor: Marcos Renan Silva Faria (RM373221) — Discord: natsumetks
-- Data: 2026-05-01
+- Data: 
 
 ## Sumário
 
@@ -65,12 +65,19 @@ Critérios de sucesso do MVP:
 - Serviços
 - Peças
 
-Fora do escopo (MVP):
+Fora do escopo (MVP / Fase 1):
 
 - Autenticação JWT avançada (refresh token, revogação e rotação)
-- Persistência em banco de dados (produção)
 - Monitoramento avançado (tempo médio e KPIs complexos)
 - Controle avançado de estoque
+
+Escopo adicionado na Fase 2:
+
+- Persistência relacional (PostgreSQL via Prisma 7)
+- API de consulta de status da OS
+- Webhook de aprovação/recusa de orçamento
+- Listagem ordenada de OS com filtro de status encerrados
+- Notificação simulada de alteração de status (e-mail via console)
 
 Observação de escopo: autenticação JWT foi implementada de forma simplificada no MVP (access token).
 
@@ -113,6 +120,28 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 - **RF-OS-09: Consultar OS**
   - `GET` por id e listagem geral.
 
+- **RF-OS-10: Consultar status da OS (Fase 2)**
+  - `GET /os/:id/status` retorna `{ id, status, statusLabel }` com label em PT-BR.
+  - Status possíveis: RECEBIDA, EM_DIAGNOSTICO, AGUARDANDO_APROVACAO, APROVADA, EM_EXECUCAO, FINALIZADA, ENTREGUE.
+
+- **RF-OS-11: Webhook de aprovação/recusa de orçamento (Fase 2)**
+  - `POST /os/:id/orcamento/webhook` com body `{ "aprovado": true | false }`.
+  - `aprovado: true` transiciona para APROVADA; `aprovado: false` retorna para EM_DIAGNOSTICO.
+
+- **RF-OS-12: Listagem ordenada de OS (Fase 2)**
+  - `GET /os` retorna OS ativas ordenadas por prioridade operacional:
+    1. EM_EXECUCAO
+    2. APROVADA
+    3. AGUARDANDO_APROVACAO
+    4. EM_DIAGNOSTICO
+    5. RECEBIDA
+  - OS com status FINALIZADA e ENTREGUE são ocultadas da listagem.
+  - Desempate pelo campo `criadaEm ASC` (mais antigas primeiro).
+
+- **RF-OS-13: Notificação de alteração de status (Fase 2)**
+  - A cada transição de status, um e-mail simulado é emitido via `console.log`.
+  - Implementado por `ConsoleEmailNotificador` (porta `NotificadorStatus` na camada de aplicação).
+
 ### 2.1.2 Gestão administrativa
 
 - **RF-ADM-01: Cliente**
@@ -136,7 +165,8 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 
 - Monólito em camadas com DDD aplicado no domínio e Clean Architecture para separar responsabilidades.
 - Camadas: Domain, Application (use-cases), Interfaces (HTTP/controllers), Infrastructure (repositórios).
-- Implementação atual: persistência em memória (in-memory) para MVP; migrar para banco quando necessário. [ADR-003](./adr/ADR-003-persistencia-in-memory-mvp.md)
+- Implementação atual (Fase 2): persistência relacional com **PostgreSQL 16** via **Prisma 7** (`@prisma/adapter-pg`, driver adapter). [ADR-006](./adr/ADR-006-estrategia-persistencia-pos-mvp.md)
+- Seam de repositório em `src/infraestructure/singletons.ts`: testes usam repositórios in-memory; runtime usa repositórios Prisma (swap ocorre em `main.ts` antes do `NestFactory.create`).
 
 ### 2.2.2 Segurança
 
@@ -149,7 +179,8 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 
 ### 2.2.3 Performance
 
-- Uso de armazenamento in-memory garante baixo tempo de resposta esperado para o MVP.
+- Persistência relacional (PostgreSQL) com Prisma 7 e driver nativo `pg` (sem overhead de conversão de protocolo).
+- Repositórios in-memory mantidos como test doubles — execução de testes sem dependência de banco.
 
 ### 2.2.4 Testes
 
@@ -158,8 +189,8 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 ### 2.2.5 Deploy
 
 - Aplicação containerizada com Docker (`Dockerfile`) e orquestração local via `docker-compose.yml`.
-- Escopo de infraestrutura no MVP: apenas serviço da API.
-- Justificativa da ausência de banco no compose: persistência em memória adotada no MVP.
+- `docker-compose.yml` contém dois serviços: `api` e `postgres` (imagem `postgres:16-alpine`).
+- Migrations aplicadas via `npx prisma migrate deploy` antes do start da API.
 
 ---
 
@@ -190,9 +221,10 @@ O sistema utiliza uma linguagem ubíqua alinhada ao domínio de oficinas mecâni
 
 ### Ações do domínio
 
-- Diagnosticar  
+- Diagnosticar
 - Gerar orçamento
 - Aprovar orçamento
+- Recusar orçamento (Fase 2)
 - Executar serviço
 - Finalizar OS
 - Entregar veículo
@@ -389,6 +421,14 @@ As regras de negócio foram centralizadas no Aggregate OrdemServico, garantindo 
 
 ---
 
+### Regras de recusa de orçamento (Fase 2)
+
+- Recusa é acionada via `POST /os/:id/orcamento/webhook` com `{ "aprovado": false }`.
+- Apenas ordens em AGUARDANDO_APROVACAO podem ser recusadas.
+- Após recusa:
+  - Status retorna para EM_DIAGNOSTICO (reabre para novo diagnóstico e reorçamento).
+  - Essa transição também dispara notificação de alteração de status.
+
 ### Regras de ajuste (fluxo alternativo)
 
 - É possível retornar a OS para diagnóstico quando:
@@ -440,11 +480,10 @@ Observação: o nível C4 (código) será elaborado em etapa posterior por ser m
 ### 4.2.2 Containers
 
 - API (NestJS) — aplica casos de uso; endpoints REST.
-- Repositórios In-Memory — persistência temporária utilizada no MVP e durante a fase inicial de testes.
-- Database (futuro) — substituição planejada dos repositórios in-memory por RDBMS/NoSQL após a fase de testes.
+- PostgreSQL 16 — banco relacional; persistência durável de todas as entidades.
+- Repositórios Prisma (`src/infraestructure/repositories/prisma-*.repository.ts`) — adaptadores que implementam as interfaces de domínio usando `PrismaClient` com driver `PrismaPg`.
+- Repositórios In-Memory (`src/infraestructure/in-memory-*.repository.ts`) — test doubles; usados exclusivamente nos testes unitários via seam em `singletons.ts`.
 - Serviços externos (opcional): gateway de pagamentos, serviço de notificações.
-
-Justificativa de modelagem: no diagrama C2, a persistência atual é representada como repositório in-memory (e não como banco de dados), pois este é o mecanismo efetivamente implementado no momento. O banco de dados aparece como elemento futuro para deixar explícito o plano de migração.
 
 ![C2 - Containers](./diagram/image/C2_Oficina_Container.png)
 
@@ -452,8 +491,11 @@ Justificativa de modelagem: no diagrama C2, a persistência atual é representad
 
 - Controllers (HTTP) — adaptadores de entrada: `src/interfaces/http/*`.
 - Use-Cases / Application Services — `src/application/use-cases/*`.
+- Ports (Application) — `src/application/ports/notificador-status.ts` (interface para notificação de status).
 - Domain Entities — `src/domain/entities/*`.
-- Repositories (Infra) — `src/infraestructure/*` (in-memory atualmente, com substituição planejada após fase de testes).
+- Repositories (Infra) — `src/infraestructure/repositories/prisma-*.repository.ts` (Prisma, runtime) e `src/infraestructure/in-memory-*.repository.ts` (test doubles).
+- Notificador (Infra) — `src/infraestructure/notificacao/console-email-notificador.ts` (implementa `NotificadorStatus`, simula e-mail via `console.log`).
+- Schema Prisma — `prisma/schema.prisma`; migrations em `prisma/migrations/`.
 
 ![C3 - Componentes](./diagram/image/C3_Oficina_Component.png)
 
@@ -467,29 +509,39 @@ Justificativa de modelagem: no diagrama C2, a persistência atual é representad
 
 ## 4.3 Low Level Design (LLD)
 
-- Estrutura de código (exemplo):
+- Estrutura de código (Fase 2):
 
 ```
 src/
   domain/
-    entities/
+    entities/           ← regras de negócio puras
+    repositories/       ← interfaces I*Repository
   application/
-    use-cases/
+    use-cases/          ← orquestração assíncrona
+    ports/              ← NotificadorStatus (interface)
   interfaces/
-    http/
+    http/               ← controllers, DTOs, mapper de status
   infraestructure/
-    in-memory-*.ts
+    in-memory-*.ts      ← test doubles (async)
+    repositories/       ← prisma-*.repository.ts (runtime)
+    prisma/             ← PrismaService, PrismaModule
+    notificacao/        ← ConsoleEmailNotificador
+    singletons.ts       ← seam de runtime vs. teste
+prisma/
+  schema.prisma         ← modelos e enums Prisma
+  migrations/           ← migrations geradas
+generated/
+  prisma/client/        ← PrismaClient gerado (não versionar)
 ```
 
+- Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases + porta de notificação), Interfaces (adapters HTTP), Infrastructure (repositórios Prisma e in-memory, notificador, singletons).
 
-- Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases), Interfaces (adapters), Infrastructure (repositorios, singletons).
+Aderência arquitetural (Fase 2):
 
-Aderência arquitetural e lacunas atuais:
-
-- A separação por camadas está presente na estrutura de pastas.
-- O domínio concentra regras de negócio de ciclo de vida da OS, porém há oportunidades de reforçar isolamento por interfaces (ports) para persistência.
-- A evolução recomendada é reduzir acoplamento entre casos de uso e implementações concretas de repositório por contratos explícitos.
-- Para produção, recomenda-se consolidar estratégia de erros de domínio -> erros HTTP de forma padronizada.
+- Repositórios desacoplados por interfaces `I*Repository` — use cases dependem de contrato, não de implementação.
+- Porta `NotificadorStatus` na camada Application; implementação `ConsoleEmailNotificador` na infra (Dependency Inversion completo).
+- Seam em `singletons.ts` isola testes de banco sem uso de mocks pesados (pattern testable-by-default).
+- Para produção: manter consolidação de erros de domínio → HTTP e adicionar transações Prisma nos fluxos de escrita da OS.
 ![Exemplo de estrutura de código](./diagram/image/lld-strucuture.png)
 
 ## 4.4 Decisões Arquiteturais (ADR)
@@ -555,12 +607,26 @@ Endpoints mapeados a partir dos controllers da aplicação (prefixos reais de ro
 - `POST /os/:id/finalizar`
 - `POST /os/:id/entregar`
 
+- `GET /os/:id/status` **(Fase 2)**
+  - Descrição: retorna status atual da OS com label em PT-BR.
+  - Respostas:
+    - `200`: `{ "id": "...", "status": "EM_EXECUCAO", "statusLabel": "Em Execução" }`
+    - `404`: OS não encontrada.
+
+- `POST /os/:id/orcamento/webhook` **(Fase 2)**
+  - Descrição: notificação externa de decisão do cliente sobre o orçamento.
+  - Request: `{ "aprovado": true }` ou `{ "aprovado": false }`
+  - Respostas:
+    - `200`: transição aplicada.
+    - `400`: status incorreto para aprovação/recusa.
+    - `404`: OS não encontrada.
+
 - `GET /os/:id`
   - Descrição: consulta OS por identificador.
   - Respostas: `200`/`404`.
 
 - `GET /os`
-  - Descrição: lista OS.
+  - Descrição: lista OS ativas ordenadas por prioridade operacional (EM_EXECUCAO > APROVADA > AGUARDANDO_APROVACAO > EM_DIAGNOSTICO > RECEBIDA). OS com status FINALIZADA/ENTREGUE são omitidas.
 
 - `GET /os/sla-atendimento`
   - Descrição: métrica de SLA médio (criação -> finalização), considerando apenas OS em status `FINALIZADA`.
@@ -791,12 +857,13 @@ Automação implementada no repositório:
 - Workflow de CI em `.github/workflows/ci.yml` executando build, lint, unit, e2e e cobertura crítica.
 - Threshold obrigatório de cobertura crítica definido em `jest.critical.config.js` com mínimo de `80%` para statements, branches, functions e lines.
 
-Resultado atual (escopo crítico medido com `test:cov:critical`):
+Resultado atual — Fase 2 (escopo crítico medido com `test:cov:critical`):
 
-- Statements: `97.9%`
-- Branches: `92.78%`
+- Statements: `98.29%`
+- Branches: `91.89%`
 - Functions: `100%`
-- Lines: `99.53%`
+- Lines: `99.62%`
+- Total de testes: **102** (26 suites)
 
 Conclusão: requisito de cobertura mínima `>= 80%` para domínios críticos atendido.
 
@@ -827,33 +894,50 @@ Características implementadas:
 
 ## 8.2 docker-compose
 
-Estado atual:
+Estado atual (Fase 2):
 
-- O repositório possui `docker-compose.yml` versionado com um único serviço (`api`).
+- O repositório possui `docker-compose.yml` com dois serviços: `api` e `postgres`.
 
 Configuração atual:
 
-- Serviço `api` construído a partir do `Dockerfile` local.
-- Mapeamento de portas `3000:3000`.
-- Política de reinício `restart: always`.
-- Comentário de evolução para futura inclusão de PostgreSQL (não implementado no MVP).
+- Serviço `api` construído a partir do `Dockerfile` local; mapeamento `3000:3000`; depende do `postgres`.
+- Serviço `postgres` — imagem `postgres:16-alpine`; porta `5432:5432`; variáveis `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` via `.env`.
 
 ## 8.3 Execução local
 
-Comandos válidos para o estado atual do projeto:
+Comandos para subir com banco real (Fase 2):
 
 ```bash
+# 1. Copiar variáveis de ambiente
+cp .env.example .env
+
+# 2. Instalar dependências
 npm install
-npm run build
+
+# 3. Subir banco de dados
+docker-compose up -d postgres
+
+# 4. Gerar client Prisma (necessário após clone ou pull)
+npx prisma generate
+
+# 5. Aplicar migrations
+npx prisma migrate deploy
+
+# 6. Iniciar API em desenvolvimento
 npm run start:dev
+```
+
+Alternativa com container completo:
+
+```bash
 docker-compose up --build
 ```
 
 Observações:
 
-- `npm run start:prod` depende de build prévio em `dist`.
-- A API pode ser executada em container via Docker Compose em `http://localhost:3000`.
-- Persistência em memória é mantida no container por decisão de escopo do MVP.
+- `npm run start:prod` depende de build prévio em `dist` e banco de dados disponível.
+- Ao usar `docker-compose up --build`, o banco e a API sobem juntos; migrations devem ser rodadas manualmente antes da primeira execução se necessário.
+- Com `SEED_DATA=true`, dados mínimos são inseridos no banco via repositórios Prisma no startup.
 
 ---
 
@@ -974,12 +1058,13 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 # 12. Considerações Finais
 
-- **Decisões de MVP:** priorizar o núcleo do domínio (Ordem de Serviço), fluxos críticos e clareza arquitetural; persistência em memória para acelerar desenvolvimento e testes.
-- **Limitações conhecidas:** persistência em memória (não persistente entre execuções), autenticação sem refresh token no MVP, análise de segurança com fallback conceitual quando Sonar não estiver disponível e monitoramento simplificado por timestamps no fluxo da OS.
+- **Evolução Fase 1 → Fase 2:** migração de persistência in-memory para PostgreSQL via Prisma 7 sem alterar a estrutura de domínio ou a estratégia de singletons; novas APIs (status, webhook, listagem ordenada) e notificação simulada de e-mail entregues dentro do escopo.
+- **Limitações conhecidas:** autenticação sem refresh token, análise de segurança com fallback conceitual quando Sonar não estiver disponível, monitoramento simplificado por timestamps no fluxo da OS, ausência de transações Prisma nos fluxos multi-step.
 - **Próximos passos:**
-  1. Consolidar estratégia de versionamento de API em roadmap de evolução.
-  2. Revisitar persistência durável quando o projeto sair do escopo MVP.
-  3. Evoluir observabilidade quando houver requisito de produção com SLA.
+  1. Infraestrutura como código (Terraform + Kubernetes) — Sprint 2.
+  2. Pipeline CI/CD (GitHub Actions) — Sprint 3.
+  3. Transações Prisma para garantir atomicidade nos fluxos de escrita da OS.
+  4. Evoluir observabilidade quando houver requisito de produção com SLA.
 
 ---
 

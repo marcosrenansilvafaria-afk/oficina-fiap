@@ -43,13 +43,15 @@ describe('Use-cases de busca', () => {
     expect(() => useCase.execute(undefined)).toThrow('Peça não encontrada');
   });
 
-  it('deve buscar OS por id e falhar para id inexistente', () => {
+  it('deve buscar OS por id e falhar para id inexistente', async () => {
     const repo = new InMemoryOrdemRepository();
     const useCase = new BuscarOrdemServico(repo);
     const os = new OrdemServico('os-1');
-    repo.save(os);
+    await repo.save(os);
 
-    expect(useCase.execute('os-1')).toBe(os);
-    expect(() => useCase.execute('nao-existe')).toThrow('OS não encontrada');
+    expect(await useCase.execute('os-1')).toBe(os);
+    await expect(useCase.execute('nao-existe')).rejects.toThrow(
+      'OS não encontrada',
+    );
   });
 });

@@ -20,81 +20,58 @@ describe('Fluxo de status da OS (use-cases)', () => {
     const finalizar = new FinalizarOrdemServico(repo);
     const entregar = new EntregarVeiculo(repo);
 
-    return {
-      repo,
-      criar,
-      iniciarDiag,
-      addItem,
-      gerar,
-      aprovar,
-      iniciarExec,
-      finalizar,
-      entregar,
-    };
+    return { repo, criar, iniciarDiag, addItem, gerar, aprovar, iniciarExec, finalizar, entregar };
   }
 
-  it('deve executar o fluxo completo de status ate ENTREGUE', () => {
-    const {
-      criar,
-      iniciarDiag,
-      addItem,
-      gerar,
-      aprovar,
-      iniciarExec,
-      finalizar,
-      entregar,
-    } = prepararFluxo();
-    const os = criar.execute();
+  it('deve executar o fluxo completo de status ate ENTREGUE', async () => {
+    const { criar, iniciarDiag, addItem, gerar, aprovar, iniciarExec, finalizar, entregar } =
+      prepararFluxo();
 
-    iniciarDiag.execute(os.id);
-    addItem.execute(os.id, {
-      tipo: 'SERVICO',
-      descricao: 'Servico',
-      preco: 90,
-      quantidade: 1,
-    });
-    gerar.execute(os.id);
-    aprovar.execute(os.id);
-    iniciarExec.execute(os.id);
-    finalizar.execute(os.id);
-    const entregue = entregar.execute(os.id);
+    const os = await criar.execute();
+    await iniciarDiag.execute(os.id);
+    await addItem.execute(os.id, { tipo: 'SERVICO', descricao: 'Servico', preco: 90, quantidade: 1 });
+    await gerar.execute(os.id);
+    await aprovar.execute(os.id);
+    await iniciarExec.execute(os.id);
+    await finalizar.execute(os.id);
+    const entregue = await entregar.execute(os.id);
 
     expect(entregue.getStatus()).toBe('ENTREGUE');
   });
 
-  it('deve falhar para iniciar execucao sem aprovacao', () => {
+  it('deve falhar para iniciar execucao sem aprovacao', async () => {
     const { criar, iniciarExec } = prepararFluxo();
-    const os = criar.execute();
+    const os = await criar.execute();
 
-    expect(() => iniciarExec.execute(os.id)).toThrow(
+    await expect(iniciarExec.execute(os.id)).rejects.toThrow(
       'Não pode iniciar execução sem aprovação',
     );
   });
 
-  it('deve falhar para finalizar fora de EM_EXECUCAO', () => {
+  it('deve falhar para finalizar fora de EM_EXECUCAO', async () => {
     const { criar, finalizar } = prepararFluxo();
-    const os = criar.execute();
+    const os = await criar.execute();
 
-    expect(() => finalizar.execute(os.id)).toThrow(
+    await expect(finalizar.execute(os.id)).rejects.toThrow(
       'Só pode finalizar se estiver em execução',
     );
   });
 
-  it('deve falhar para entregar fora de FINALIZADA', () => {
+  it('deve falhar para entregar fora de FINALIZADA', async () => {
     const { criar, entregar } = prepararFluxo();
-    const os = criar.execute();
+    const os = await criar.execute();
 
-    expect(() => entregar.execute(os.id)).toThrow(
+    await expect(entregar.execute(os.id)).rejects.toThrow(
       'Só pode entregar após finalização',
     );
   });
 
-  it('deve retornar erro OS não encontrada para use-cases de status', () => {
+  it('deve retornar erro OS não encontrada para use-cases de status', async () => {
     const { iniciarDiag, iniciarExec, finalizar, entregar } = prepararFluxo();
 
-    expect(() => iniciarDiag.execute('x')).toThrow('OS não encontrada');
-    expect(() => iniciarExec.execute('x')).toThrow('OS não encontrada');
-    expect(() => finalizar.execute('x')).toThrow('OS não encontrada');
-    expect(() => entregar.execute('x')).toThrow('OS não encontrada');
+    await expect(iniciarDiag.execute('x')).rejects.toThrow('OS não encontrada');
+    await expect(iniciarExec.execute('x')).rejects.toThrow('OS não encontrada');
+    await expect(finalizar.execute('x')).rejects.toThrow('OS não encontrada');
+    await expect(entregar.execute('x')).rejects.toThrow('OS não encontrada');
   });
 });

@@ -4,11 +4,12 @@ import { resetInMemoryRepositories } from '../../infraestructure/singletons';
 import {
   AdicionarItemOrdemServicoDto,
   CriarOrdemServicoDto,
+  WebhookOrcamentoDto,
 } from './dto/ordem-servico.dto';
 
 describe('OrdemServicoController', () => {
-  beforeEach(() => {
-    resetInMemoryRepositories();
+  beforeEach(async () => {
+    await resetInMemoryRepositories();
   });
 
   afterEach(() => {
@@ -28,11 +29,11 @@ describe('OrdemServicoController', () => {
     };
   }
 
-  it('deve criar os e retornar dados padrao no buscar e listar', () => {
+  it('deve criar os e retornar dados padrao no buscar e listar', async () => {
     const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
+    const created = await controller.criar({} as CriarOrdemServicoDto);
 
-    const buscada = controller.buscar(created.id) as {
+    const buscada = (await controller.buscar(created.id)) as {
       id: string;
       envioOrcamento: { status: 'NAO_ENVIADO' | 'ENVIADO' };
       tempoExecucaoMs: number | null;
@@ -42,68 +43,73 @@ describe('OrdemServicoController', () => {
     expect(buscada.envioOrcamento.status).toBe('NAO_ENVIADO');
     expect(buscada.tempoExecucaoMs).toBeNull();
 
-    const listagem = controller.listar() as Array<{ id: string }>;
+    const listagem = (await controller.listar()) as Array<{ id: string }>;
     expect(listagem).toHaveLength(1);
     expect(listagem[0].id).toBe(created.id);
   });
 
-  it('deve validar clienteId e veiculoId no criar', () => {
+  it('deve validar clienteId e veiculoId no criar', async () => {
     const controller = criarController();
 
-    expect(() =>
+    await expect(
       controller.criar({ clienteId: 'x' } as CriarOrdemServicoDto),
-    ).toThrow(BadRequestException);
+    ).rejects.toThrow(BadRequestException);
 
-    expect(() =>
+    await expect(
       controller.criar({ veiculoId: 'y' } as CriarOrdemServicoDto),
-    ).toThrow(BadRequestException);
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it('deve retornar not found no buscar para id inexistente', () => {
+  it('deve retornar not found no buscar para id inexistente', async () => {
     const controller = criarController();
 
-    expect(() => controller.buscar('nao-existe')).toThrow(NotFoundException);
-  });
-
-  it('deve retornar not found no adicionar para os inexistente', () => {
-    const controller = criarController();
-
-    expect(() =>
-      controller.adicionar('nao-existe', itemServicoPadrao()),
-    ).toThrow(NotFoundException);
-  });
-
-  it('deve converter erro de regra no adicionar para bad request', () => {
-    const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
-
-    expect(() => controller.adicionar(created.id, itemServicoPadrao())).toThrow(
-      BadRequestException,
+    await expect(controller.buscar('nao-existe')).rejects.toThrow(
+      NotFoundException,
     );
   });
 
-  it('deve diagnosticar e adicionar item com sucesso', () => {
+  it('deve retornar not found no adicionar para os inexistente', async () => {
     const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
 
-    const diagnosticada = controller.diagnostico(created.id);
+    await expect(
+      controller.adicionar('nao-existe', itemServicoPadrao()),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('deve converter erro de regra no adicionar para bad request', async () => {
+    const controller = criarController();
+    const created = await controller.criar({} as CriarOrdemServicoDto);
+
+    await expect(
+      controller.adicionar(created.id, itemServicoPadrao()),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('deve diagnosticar e adicionar item com sucesso', async () => {
+    const controller = criarController();
+    const created = await controller.criar({} as CriarOrdemServicoDto);
+
+    const diagnosticada = await controller.diagnostico(created.id);
     expect(diagnosticada.getStatus()).toBe('EM_DIAGNOSTICO');
 
-    const atualizada = controller.adicionar(created.id, itemServicoPadrao());
+    const atualizada = await controller.adicionar(
+      created.id,
+      itemServicoPadrao(),
+    );
     expect(atualizada.getItens()).toHaveLength(1);
   });
 
-  it('deve gerar e enviar orcamento quando os estiver pronta', () => {
+  it('deve gerar e enviar orcamento quando os estiver pronta', async () => {
     const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
+    const created = await controller.criar({} as CriarOrdemServicoDto);
 
-    controller.diagnostico(created.id);
-    controller.adicionar(created.id, itemServicoPadrao());
+    await controller.diagnostico(created.id);
+    await controller.adicionar(created.id, itemServicoPadrao());
 
-    const orcada = controller.gerar(created.id);
+    const orcada = await controller.gerar(created.id);
     expect(orcada.getStatus()).toBe('AGUARDANDO_APROVACAO');
 
-    const envio = controller.enviarOrcamento(created.id) as {
+    const envio = (await controller.enviarOrcamento(created.id)) as {
       ordemServicoId: string;
       status: 'NAO_ENVIADO' | 'ENVIADO';
       enviadoEm?: string;
@@ -113,85 +119,142 @@ describe('OrdemServicoController', () => {
     expect(envio.enviadoEm).toBeDefined();
   });
 
-  it('deve bloquear envio de orcamento em status invalido', () => {
+  it('deve bloquear envio de orcamento em status invalido', async () => {
     const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
+    const created = await controller.criar({} as CriarOrdemServicoDto);
 
-    expect(() => controller.enviarOrcamento(created.id)).toThrow(
+    await expect(controller.enviarOrcamento(created.id)).rejects.toThrow(
       BadRequestException,
     );
   });
 
-  it('deve converter erro no aprovar para bad request', () => {
+  it('deve converter erro no aprovar para bad request', async () => {
     const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
+    const created = await controller.criar({} as CriarOrdemServicoDto);
 
-    expect(() => controller.aprovar(created.id)).toThrow(BadRequestException);
+    await expect(controller.aprovar(created.id)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
-  it('deve executar, finalizar, consultar SLA e entregar', () => {
+  it('deve executar, finalizar, consultar SLA e entregar', async () => {
     const controller = criarController();
     const nowSpy = jest.spyOn(Date, 'now');
 
-    // 1) criação da OS (criadaEm)
-    // 2) iniciar execução (inicioExecucao)
-    // 3) finalizar (tempoExecucaoMs)
-    // 4) finalizar (finalizadaEm)
     nowSpy
       .mockReturnValueOnce(1000)
       .mockReturnValueOnce(2000)
       .mockReturnValueOnce(5000)
       .mockReturnValueOnce(5000);
 
-    const created = controller.criar({} as CriarOrdemServicoDto);
+    const created = await controller.criar({} as CriarOrdemServicoDto);
 
-    controller.diagnostico(created.id);
-    controller.adicionar(created.id, itemServicoPadrao());
-    controller.gerar(created.id);
-    controller.aprovar(created.id);
+    await controller.diagnostico(created.id);
+    await controller.adicionar(created.id, itemServicoPadrao());
+    await controller.gerar(created.id);
+    await controller.aprovar(created.id);
 
-    const emExecucao = controller.executar(created.id);
+    const emExecucao = await controller.executar(created.id);
     expect(emExecucao.getStatus()).toBe('EM_EXECUCAO');
 
-    const finalizada = controller.finalizar(created.id) as {
+    const finalizada = (await controller.finalizar(created.id)) as {
       status: string;
       tempoExecucaoMs: number | null;
     };
     expect(finalizada.status).toBe('FINALIZADA');
     expect(finalizada.tempoExecucaoMs).toBe(3000);
 
-    const sla = controller.slaAtendimento() as {
+    const sla = (await controller.slaAtendimento()) as {
       totalOrdensConcluidas: number;
       slaMedioAtendimentoMs: number;
     };
     expect(sla.totalOrdensConcluidas).toBe(1);
-    // criação (1000) -> finalização (5000)
     expect(sla.slaMedioAtendimentoMs).toBe(4000);
 
-    const entregue = controller.entregar(created.id);
+    const entregue = await controller.entregar(created.id);
     expect(entregue.getStatus()).toBe('ENTREGUE');
   });
 
-  it('deve converter erro no executar para bad request', () => {
+  it('deve converter erro no executar para bad request', async () => {
     const controller = criarController();
-    const created = controller.criar({} as CriarOrdemServicoDto);
+    const created = await controller.criar({} as CriarOrdemServicoDto);
 
-    expect(() => controller.executar(created.id)).toThrow(BadRequestException);
+    await expect(controller.executar(created.id)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
-  it('deve retornar not found em operacoes quando os nao existe', () => {
+  it('deve retornar not found em operacoes quando os nao existe', async () => {
     const controller = criarController();
 
-    expect(() => controller.gerar('nao-existe')).toThrow(NotFoundException);
-    expect(() => controller.aprovar('nao-existe')).toThrow(NotFoundException);
-    expect(() => controller.diagnostico('nao-existe')).toThrow(
+    await expect(controller.gerar('nao-existe')).rejects.toThrow(
       NotFoundException,
     );
-    expect(() => controller.executar('nao-existe')).toThrow(NotFoundException);
-    expect(() => controller.finalizar('nao-existe')).toThrow(NotFoundException);
-    expect(() => controller.entregar('nao-existe')).toThrow(NotFoundException);
-    expect(() => controller.enviarOrcamento('nao-existe')).toThrow(
+    await expect(controller.aprovar('nao-existe')).rejects.toThrow(
       NotFoundException,
     );
+    await expect(controller.diagnostico('nao-existe')).rejects.toThrow(
+      NotFoundException,
+    );
+    await expect(controller.executar('nao-existe')).rejects.toThrow(
+      NotFoundException,
+    );
+    await expect(controller.finalizar('nao-existe')).rejects.toThrow(
+      NotFoundException,
+    );
+    await expect(controller.entregar('nao-existe')).rejects.toThrow(
+      NotFoundException,
+    );
+    await expect(controller.enviarOrcamento('nao-existe')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('deve retornar status da OS com label em PT-BR', async () => {
+    const controller = criarController();
+    const created = await controller.criar({} as CriarOrdemServicoDto);
+
+    const statusResp = await controller.status(created.id);
+    expect(statusResp.id).toBe(created.id);
+    expect(statusResp.status).toBe('RECEBIDA');
+    expect(statusResp.statusLabel).toBe('Recebida');
+  });
+
+  it('deve retornar not found no status para os inexistente', async () => {
+    const controller = criarController();
+
+    await expect(controller.status('nao-existe')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('deve aprovar orcamento via webhook', async () => {
+    const controller = criarController();
+    const created = await controller.criar({} as CriarOrdemServicoDto);
+
+    await controller.diagnostico(created.id);
+    await controller.adicionar(created.id, itemServicoPadrao());
+    await controller.gerar(created.id);
+
+    const resultado = await controller.webhookOrcamento(
+      created.id,
+      { aprovado: true } as WebhookOrcamentoDto,
+    );
+    expect(resultado.getStatus()).toBe('APROVADA');
+  });
+
+  it('deve recusar orcamento via webhook e voltar para EM_DIAGNOSTICO', async () => {
+    const controller = criarController();
+    const created = await controller.criar({} as CriarOrdemServicoDto);
+
+    await controller.diagnostico(created.id);
+    await controller.adicionar(created.id, itemServicoPadrao());
+    await controller.gerar(created.id);
+
+    const resultado = await controller.webhookOrcamento(
+      created.id,
+      { aprovado: false } as WebhookOrcamentoDto,
+    );
+    expect(resultado.getStatus()).toBe('EM_DIAGNOSTICO');
   });
 });

@@ -45,18 +45,14 @@ export class ClienteController {
   @ApiBody({ type: CriarClienteDto })
   @ApiOkResponse({ description: 'Cliente criado com sucesso' })
   @Post()
-  criar(@Body() body: CriarClienteDto) {
+  async criar(@Body() body: CriarClienteDto) {
     if (!body || !body.nome || !body.documento) {
       throw new BadRequestException('nome e documento são obrigatórios');
     }
 
     try {
       const documento = this.validarDocumento(body.documento);
-      const cliente = this.criarCliente.execute({
-        nome: body.nome,
-        documento,
-      });
-      return cliente;
+      return await this.criarCliente.execute({ nome: body.nome, documento });
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -67,8 +63,8 @@ export class ClienteController {
   @ApiOkResponse({ description: 'Cliente encontrado' })
   @ApiNotFoundResponse({ description: 'Cliente não encontrado' })
   @Get(':id')
-  buscar(@Param('id') id: string) {
-    const cliente = this.repo.getById(id);
+  async buscar(@Param('id') id: string) {
+    const cliente = await this.repo.getById(id);
     if (!cliente) throw new NotFoundException('Cliente não encontrado');
     return this.buscarCliente.execute(cliente);
   }
@@ -76,7 +72,7 @@ export class ClienteController {
   @ApiOperation({ summary: 'Listar clientes' })
   @ApiOkResponse({ description: 'Lista de clientes retornada com sucesso' })
   @Get()
-  listar() {
+  async listar() {
     return this.repo.all();
   }
 }

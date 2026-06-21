@@ -21,21 +21,27 @@ import { CriarOrdemServico } from '../../application/use-cases/criar-ordem-servi
 import { AdicionarItemOrdemServico } from '../../application/use-cases/adicionar-item-ordem-servico';
 import { GerarOrcamento } from '../../application/use-cases/gerar-orcamento';
 import { AprovarOrcamento } from '../../application/use-cases/aprovar-orcamento';
+import { RecusarOrcamento } from '../../application/use-cases/recusar-orcamento';
 import { IniciarExecucao } from '../../application/use-cases/iniciar-execucao';
 import { IniciarDiagnostico } from '../../application/use-cases/iniciar-diagnostico';
 import { FinalizarOrdemServico } from '../../application/use-cases/finalizar-ordem-servico';
 import { EntregarVeiculo } from '../../application/use-cases/entregar-veiculo';
+import { ListarOrdensServico } from '../../application/use-cases/listar-ordens-servico';
 import {
   clienteRepo,
   veiculoRepo,
   ordemRepo,
   pecaRepo,
   servicoRepo,
+  notificadorStatus,
 } from '../../infraestructure/singletons';
 import {
   AdicionarItemOrdemServicoDto,
   CriarOrdemServicoDto,
+  StatusOrdemServicoResponseDto,
+  WebhookOrcamentoDto,
 } from './dto/ordem-servico.dto';
+import { STATUS_LABEL } from './status-os.label';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../auth/roles.guard';
 import { Roles } from '../../auth/roles.decorator';
@@ -51,14 +57,15 @@ export class OrdemServicoController {
     pecaRepo,
     servicoRepo,
   );
-  private gerarOrcamento = new GerarOrcamento(ordemRepo);
-  private aprovarOrcamento = new AprovarOrcamento(ordemRepo);
-  private iniciarExecucao = new IniciarExecucao(ordemRepo);
-  private iniciarDiagnostico = new IniciarDiagnostico(ordemRepo);
-  private finalizarOrdem = new FinalizarOrdemServico(ordemRepo);
-  private entregarVeiculo = new EntregarVeiculo(ordemRepo);
+  private gerarOrcamento = new GerarOrcamento(ordemRepo, notificadorStatus);
+  private aprovarOrcamento = new AprovarOrcamento(ordemRepo, notificadorStatus);
+  private recusarOrcamentoUC = new RecusarOrcamento(ordemRepo, notificadorStatus);
+  private iniciarExecucao = new IniciarExecucao(ordemRepo, notificadorStatus);
+  private iniciarDiagnostico = new IniciarDiagnostico(ordemRepo, notificadorStatus);
+  private finalizarOrdem = new FinalizarOrdemServico(ordemRepo, notificadorStatus);
+  private entregarVeiculo = new EntregarVeiculo(ordemRepo, notificadorStatus);
+  private listarOrdens = new ListarOrdensServico(ordemRepo);
 
-  // using shared singleton repo
   private repo = ordemRepo;
   private envioOrcamento = new Map<
     string,
@@ -74,26 +81,15 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ATENDENTE)
   @Post()
-  criar(@Body() body: CriarOrdemServicoDto) {
-    // accept optional clienteId and veiculoId in body
-    return this.criarWithBody(body);
-  }
-
-  // extracted to allow body validation
-  private criarWithBody(body: CriarOrdemServicoDto) {
-    const clienteId = body?.clienteId;
-    const veiculoId = body?.veiculoId;
-
-    if (clienteId && !clienteRepo.getById(clienteId)) {
-      throw new BadRequestException('clienteId inválido');
+  async criar(@Body() body: CriarOrdemServicoDto) {
+    try {
+      return await this.criarOS.execute({
+        clienteId: body?.clienteId,
+        veiculoId: body?.veiculoId,
+      });
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
     }
-
-    if (veiculoId && !veiculoRepo.getById(veiculoId)) {
-      throw new BadRequestException('veiculoId inválido');
-    }
-
-    const os = this.criarOS.execute({ clienteId, veiculoId });
-    return os;
   }
 
   @ApiOperation({ summary: 'Adicionar item na ordem de servico' })
@@ -105,19 +101,15 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ATENDENTE)
   @Post(':id/item')
-  adicionar(
+  async adicionar(
     @Param('id') id: string,
     @Body() body: AdicionarItemOrdemServicoDto,
   ) {
-    const os = this.repo.getById(id);
-
-    if (!os) {
-      throw new NotFoundException('OS não encontrada');
-    }
+    const os = await this.repo.getById(id);
+    if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.adicionarItem.execute(id, body);
-      return result;
+      return await this.adicionarItem.execute(id, body);
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -131,12 +123,12 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ATENDENTE)
   @Post(':id/orcamento')
-  gerar(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async gerar(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.gerarOrcamento.execute(id);
+      const result = await this.gerarOrcamento.execute(id);
       if (!this.envioOrcamento.has(id)) {
         this.envioOrcamento.set(id, { status: 'NAO_ENVIADO' });
       }
@@ -154,8 +146,8 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ATENDENTE)
   @Post(':id/enviar-orcamento')
-  enviarOrcamento(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async enviarOrcamento(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     if (os.getStatus() !== 'AGUARDANDO_APROVACAO') {
@@ -170,10 +162,7 @@ export class OrdemServicoController {
     };
     this.envioOrcamento.set(id, envio);
 
-    return {
-      ordemServicoId: id,
-      ...envio,
-    };
+    return { ordemServicoId: id, ...envio };
   }
 
   @ApiOperation({ summary: 'Iniciar diagnostico da OS' })
@@ -184,13 +173,12 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MECANICO)
   @Post(':id/diagnostico')
-  diagnostico(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async diagnostico(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.iniciarDiagnostico.execute(id);
-      return result;
+      return await this.iniciarDiagnostico.execute(id);
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -204,13 +192,36 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ATENDENTE)
   @Post(':id/aprovar')
-  aprovar(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async aprovar(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.aprovarOrcamento.execute(id);
-      return result;
+      return await this.aprovarOrcamento.execute(id);
+    } catch (err: unknown) {
+      throw new BadRequestException(getErrorMessage(err));
+    }
+  }
+
+  @ApiOperation({ summary: 'Webhook de aprovacao ou recusa do orcamento pelo cliente' })
+  @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
+  @ApiBody({ type: WebhookOrcamentoDto })
+  @ApiOkResponse({ description: 'Orcamento processado com sucesso' })
+  @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @Post(':id/orcamento/webhook')
+  async webhookOrcamento(
+    @Param('id') id: string,
+    @Body() body: WebhookOrcamentoDto,
+  ) {
+    const os = await this.repo.getById(id);
+    if (!os) throw new NotFoundException('OS não encontrada');
+
+    try {
+      if (body.aprovado) {
+        return await this.aprovarOrcamento.execute(id);
+      } else {
+        return await this.recusarOrcamentoUC.execute(id);
+      }
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -224,12 +235,12 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MECANICO)
   @Post(':id/executar')
-  executar(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async executar(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.iniciarExecucao.execute(id);
+      const result = await this.iniciarExecucao.execute(id);
       this.execucaoIniciadaEm.set(id, Date.now());
       return result;
     } catch (err: unknown) {
@@ -245,12 +256,12 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MECANICO)
   @Post(':id/finalizar')
-  finalizar(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async finalizar(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.finalizarOrdem.execute(id);
+      const result = await this.finalizarOrdem.execute(id);
       const inicioExecucao = this.execucaoIniciadaEm.get(id);
       let tempoExecucaoMs: number | null = null;
 
@@ -278,18 +289,15 @@ export class OrdemServicoController {
       'Métrica de SLA de atendimento (intervalo entre criação e finalização). Considera apenas OS em status FINALIZADA.',
   })
   @Get('sla-atendimento')
-  slaAtendimento() {
-    const ordensConcluidas = this.repo
-      .all()
-      .filter((os) => os.getStatus() === 'FINALIZADA');
+  async slaAtendimento() {
+    const todas = await this.repo.all();
+    const ordensConcluidas = todas.filter((os) => os.getStatus() === 'FINALIZADA');
 
     const totalOrdensConcluidas = ordensConcluidas.length;
     const totalSlaMs = ordensConcluidas.reduce((acc, os) => {
       const criadaEm = os.getCriadaEm();
       const finalizadaEm = os.getFinalizadaEm();
-      if (!finalizadaEm) {
-        return acc;
-      }
+      if (!finalizadaEm) return acc;
       return acc + (finalizadaEm.getTime() - criadaEm.getTime());
     }, 0);
 
@@ -298,10 +306,7 @@ export class OrdemServicoController {
         ? 0
         : Math.round(totalSlaMs / totalOrdensConcluidas);
 
-    return {
-      totalOrdensConcluidas,
-      slaMedioAtendimentoMs,
-    };
+    return { totalOrdensConcluidas, slaMedioAtendimentoMs };
   }
 
   @ApiOperation({ summary: 'Entregar veiculo da OS' })
@@ -312,16 +317,32 @@ export class OrdemServicoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ATENDENTE)
   @Post(':id/entregar')
-  entregar(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async entregar(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
     try {
-      const result = this.entregarVeiculo.execute(id);
-      return result;
+      return await this.entregarVeiculo.execute(id);
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
+  }
+
+  @ApiOperation({ summary: 'Consultar status atual da OS' })
+  @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
+  @ApiOkResponse({ type: StatusOrdemServicoResponseDto })
+  @ApiNotFoundResponse({ description: 'OS não encontrada' })
+  @Get(':id/status')
+  async status(@Param('id') id: string): Promise<StatusOrdemServicoResponseDto> {
+    const os = await this.repo.getById(id);
+    if (!os) throw new NotFoundException('OS não encontrada');
+
+    const status = os.getStatus();
+    return {
+      id: os.id,
+      status,
+      statusLabel: STATUS_LABEL[status],
+    };
   }
 
   @ApiOperation({ summary: 'Buscar OS por id' })
@@ -329,8 +350,8 @@ export class OrdemServicoController {
   @ApiOkResponse({ description: 'OS encontrada' })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
   @Get(':id')
-  buscar(@Param('id') id: string) {
-    const os = this.repo.getById(id);
+  async buscar(@Param('id') id: string) {
+    const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
     return {
       ...os,
@@ -339,15 +360,14 @@ export class OrdemServicoController {
     };
   }
 
-  @ApiOperation({ summary: 'Listar ordens de servico' })
-  @ApiOkResponse({ description: 'Lista de OS retornada com sucesso' })
+  @ApiOperation({ summary: 'Listar ordens de servico (ordenadas por prioridade)' })
+  @ApiOkResponse({ description: 'Lista de OS retornada com sucesso (FINALIZADA/ENTREGUE ocultas)' })
   @Get()
-  listar() {
-    return this.repo.all().map((os) => ({
+  async listar() {
+    const ordens = await this.listarOrdens.execute();
+    return ordens.map((os) => ({
       ...os,
-      envioOrcamento: this.envioOrcamento.get(os.id) || {
-        status: 'NAO_ENVIADO',
-      },
+      envioOrcamento: this.envioOrcamento.get(os.id) || { status: 'NAO_ENVIADO' },
       tempoExecucaoMs: this.execucaoConcluidaMs.get(os.id) ?? null,
     }));
   }

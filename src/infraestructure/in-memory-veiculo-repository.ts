@@ -1,21 +1,22 @@
 import { Veiculo } from '../domain/entities/veiculo';
+import { IVeiculoRepository } from '../domain/repositories/veiculo-repository.interface';
 
-export class InMemoryVeiculoRepository {
+export class InMemoryVeiculoRepository implements IVeiculoRepository {
   private store = new Map<string, Veiculo>();
 
-  save(veiculo: Veiculo) {
+  async save(veiculo: Veiculo): Promise<void> {
     this.store.set(veiculo.id, veiculo);
   }
 
-  getById(id: string): Veiculo | undefined {
-    return this.store.get(id);
+  async getById(id: string): Promise<Veiculo | null> {
+    return this.store.get(id) ?? null;
   }
 
-  all(): Veiculo[] {
+  async all(): Promise<Veiculo[]> {
     return Array.from(this.store.values());
   }
 
-  clear() {
+  async clear(): Promise<void> {
     this.store.clear();
   }
 }

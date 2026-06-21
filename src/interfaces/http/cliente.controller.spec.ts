@@ -4,61 +4,65 @@ import { resetInMemoryRepositories } from '../../infraestructure/singletons';
 import { CriarClienteDto } from './dto/cliente.dto';
 
 describe('ClienteController', () => {
-  beforeEach(() => {
-    resetInMemoryRepositories();
+  beforeEach(async () => {
+    await resetInMemoryRepositories();
   });
 
-  it('deve validar campos obrigatorios no criar', () => {
+  it('deve validar campos obrigatorios no criar', async () => {
     const controller = new ClienteController();
 
-    expect(() => controller.criar({ nome: 'Ana' } as CriarClienteDto)).toThrow(
-      BadRequestException,
-    );
+    await expect(
+      controller.criar({ nome: 'Ana' } as CriarClienteDto),
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it('deve rejeitar documento invalido', () => {
+  it('deve rejeitar documento invalido', async () => {
     const controller = new ClienteController();
 
-    expect(() =>
+    await expect(
       controller.criar({ nome: 'Ana', documento: '123' } as CriarClienteDto),
-    ).toThrow(BadRequestException);
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it('deve criar cliente com documento normalizado e listar', () => {
+  it('deve criar cliente com documento normalizado e listar', async () => {
     const controller = new ClienteController();
 
-    const created = controller.criar({
+    const created = await controller.criar({
       nome: 'Ana',
       documento: '123.456.789-01',
     } as CriarClienteDto);
 
     expect(created.documento).toBe('12345678901');
-    expect(controller.listar()).toHaveLength(1);
+    expect(await controller.listar()).toHaveLength(1);
   });
 
-  it('deve rejeitar duplicidade de documento', () => {
+  it('deve rejeitar duplicidade de documento', async () => {
     const controller = new ClienteController();
 
-    controller.criar({
+    await controller.criar({
       nome: 'Ana',
       documento: '12345678901',
     } as CriarClienteDto);
-    expect(() =>
+
+    await expect(
       controller.criar({
         nome: 'Ana 2',
         documento: '123.456.789-01',
       } as CriarClienteDto),
-    ).toThrow(BadRequestException);
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it('deve buscar cliente existente e falhar para id ausente', () => {
+  it('deve buscar cliente existente e falhar para id ausente', async () => {
     const controller = new ClienteController();
-    const created = controller.criar({
+
+    const created = await controller.criar({
       nome: 'Ana',
       documento: '12345678901',
     } as CriarClienteDto);
 
-    expect(controller.buscar(created.id).id).toBe(created.id);
-    expect(() => controller.buscar('inexistente')).toThrow(NotFoundException);
+    expect((await controller.buscar(created.id)).id).toBe(created.id);
+    await expect(controller.buscar('inexistente')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

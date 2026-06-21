@@ -3,31 +3,33 @@ import { InMemoryPecaRepository } from '../../infraestructure/in-memory-peca-rep
 import { AjustarEstoquePeca } from './ajustar-estoque-peca';
 
 describe('AjustarEstoquePeca', () => {
-  it('deve ajustar estoque quando peca existir', () => {
+  it('deve ajustar estoque quando peca existir', async () => {
     const repo = new InMemoryPecaRepository();
     const peca = new Peca('p1', 'Filtro', 20, 5);
-    repo.save(peca);
+    await repo.save(peca);
 
     const useCase = new AjustarEstoquePeca(repo);
-    const atualizada = useCase.execute('p1', -2);
+    const atualizada = await useCase.execute('p1', -2);
 
     expect(atualizada.estoque).toBe(3);
   });
 
-  it('deve falhar quando peca nao existe', () => {
+  it('deve falhar quando peca nao existe', async () => {
     const repo = new InMemoryPecaRepository();
     const useCase = new AjustarEstoquePeca(repo);
 
-    expect(() => useCase.execute('nao-existe', 1)).toThrow(
+    await expect(useCase.execute('nao-existe', 1)).rejects.toThrow(
       'Peça não encontrada',
     );
   });
 
-  it('deve falhar quando ajuste gerar estoque negativo', () => {
+  it('deve falhar quando ajuste gerar estoque negativo', async () => {
     const repo = new InMemoryPecaRepository();
-    repo.save(new Peca('p1', 'Filtro', 20, 1));
+    await repo.save(new Peca('p1', 'Filtro', 20, 1));
 
     const useCase = new AjustarEstoquePeca(repo);
-    expect(() => useCase.execute('p1', -2)).toThrow('Estoque insuficiente');
+    await expect(useCase.execute('p1', -2)).rejects.toThrow(
+      'Estoque insuficiente',
+    );
   });
 });

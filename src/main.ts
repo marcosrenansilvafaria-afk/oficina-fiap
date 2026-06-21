@@ -2,9 +2,17 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { seedInMemoryRepositories } from './infraestructure/singletons';
+import { PrismaService } from './infraestructure/prisma/prisma.service';
+import {
+  useDatabaseRepositories,
+  seedRepositories,
+} from './infraestructure/singletons';
 
 async function bootstrap() {
+  const prisma = new PrismaService();
+  await prisma.$connect();
+  useDatabaseRepositories(prisma);
+
   const app = await NestFactory.create(AppModule);
 
   const swaggerConfig = new DocumentBuilder()
@@ -29,10 +37,13 @@ async function bootstrap() {
   });
 
   if (process.env.SEED_DATA === 'true') {
-    seedInMemoryRepositories();
+    await seedRepositories();
   }
 
-  await app.listen(process.env.PORT ?? 3000);
+  app.enableShutdownHooks();
+
+  const server = await app.listen(process.env.PORT ?? 3000);
+  server.on('close', () => prisma.$disconnect());
 }
 bootstrap().catch((error: unknown) => {
   const message =

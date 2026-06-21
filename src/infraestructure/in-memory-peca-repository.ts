@@ -1,21 +1,22 @@
 import { Peca } from '../domain/entities/peca';
+import { IPecaRepository } from '../domain/repositories/peca-repository.interface';
 
-export class InMemoryPecaRepository {
+export class InMemoryPecaRepository implements IPecaRepository {
   private store = new Map<string, Peca>();
 
-  save(peca: Peca) {
+  async save(peca: Peca): Promise<void> {
     this.store.set(peca.id, peca);
   }
 
-  getById(id: string): Peca | undefined {
-    return this.store.get(id);
+  async getById(id: string): Promise<Peca | null> {
+    return this.store.get(id) ?? null;
   }
 
-  all(): Peca[] {
+  async all(): Promise<Peca[]> {
     return Array.from(this.store.values());
   }
 
-  clear() {
+  async clear(): Promise<void> {
     this.store.clear();
   }
 }

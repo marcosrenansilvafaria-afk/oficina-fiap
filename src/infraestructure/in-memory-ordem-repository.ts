@@ -1,25 +1,26 @@
 import { OrdemServico } from '../domain/entities/ordem-servico';
+import { IOrdemRepository } from '../domain/repositories/ordem-repository.interface';
 
-export class InMemoryOrdemRepository {
+export class InMemoryOrdemRepository implements IOrdemRepository {
   private store = new Map<string, OrdemServico>();
 
-  save(ordem: OrdemServico) {
+  async save(ordem: OrdemServico): Promise<void> {
     this.store.set(ordem.id, ordem);
   }
 
-  getById(id: string): OrdemServico | undefined {
-    return this.store.get(id);
+  async getById(id: string): Promise<OrdemServico | null> {
+    return this.store.get(id) ?? null;
   }
 
-  exists(id: string): boolean {
+  async exists(id: string): Promise<boolean> {
     return this.store.has(id);
   }
 
-  all(): OrdemServico[] {
+  async all(): Promise<OrdemServico[]> {
     return Array.from(this.store.values());
   }
 
-  clear() {
+  async clear(): Promise<void> {
     this.store.clear();
   }
 }

@@ -4,33 +4,35 @@ import { resetInMemoryRepositories } from '../../infraestructure/singletons';
 import { CriarServicoDto } from './dto/servico.dto';
 
 describe('ServicoController', () => {
-  beforeEach(() => {
-    resetInMemoryRepositories();
+  beforeEach(async () => {
+    await resetInMemoryRepositories();
   });
 
-  it('deve validar nome obrigatorio no criar', () => {
+  it('deve validar nome obrigatorio no criar', async () => {
     const controller = new ServicoController();
 
-    expect(() => controller.criar({ preco: 120 } as CriarServicoDto)).toThrow(
-      BadRequestException,
-    );
+    await expect(
+      controller.criar({ preco: 120 } as CriarServicoDto),
+    ).rejects.toThrow(BadRequestException);
   });
 
-  it('deve criar, listar e buscar servico existente', () => {
+  it('deve criar, listar e buscar servico existente', async () => {
     const controller = new ServicoController();
 
-    const created = controller.criar({
+    const created = await controller.criar({
       nome: 'Troca de oleo',
       preco: 150,
     } as CriarServicoDto);
 
-    expect(controller.listar()).toHaveLength(1);
-    expect(controller.buscar(created.id).id).toBe(created.id);
+    expect(await controller.listar()).toHaveLength(1);
+    expect((await controller.buscar(created.id)).id).toBe(created.id);
   });
 
-  it('deve retornar not found ao buscar servico inexistente', () => {
+  it('deve retornar not found ao buscar servico inexistente', async () => {
     const controller = new ServicoController();
 
-    expect(() => controller.buscar('inexistente')).toThrow(NotFoundException);
+    await expect(controller.buscar('inexistente')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
