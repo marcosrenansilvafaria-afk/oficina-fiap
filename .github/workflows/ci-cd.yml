@@ -192,7 +192,11 @@ jobs:
           TF_VAR_image_tag: ${{ needs.docker-build.outputs.short-sha }}
 
       - name: Aguardar migration Job completar
-        run: kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=120s
+        run: |
+          kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=300s \
+            || { echo "=== Job status ==="; kubectl describe job/prisma-migrate -n oficina; \
+                 echo "=== Pod logs ==="; kubectl logs -l job-name=prisma-migrate -n oficina --tail=50; \
+                 exit 1; }
 
       - name: Aguardar rollout da API
         run: kubectl rollout status deployment/oficina-api -n oficina --timeout=180s
