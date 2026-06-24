@@ -1383,13 +1383,37 @@ Cada job só inicia se o anterior passar inteiro. Uma falha de lint, teste ou bu
 11. `kubectl get hpa` — prova min 2 / max 5 réplicas configuradas
 12. `curl http://localhost:3000/docs` — smoke test via NodePort mapeado pelo Kind
 
+### Arquitetura IaC declarativa — `kubectl_manifest` (padrão adotado)
+
+O Terraform gerencia **todos** os recursos Kubernetes como recursos nativos do provider `gavinbunney/kubectl`, organizados em três camadas com `depends_on` explícito:
+
+```
+infra/manifests/
+├── 00-namespaces/    → kubectl_manifest.namespace
+│     namespace.yaml
+├── 01-config/        → kubectl_manifest.configmap
+│     configmap.yaml  → kubectl_manifest.api_secret (templatefile — valores sensíveis via variáveis)
+│     secret.tpl.yaml
+└── 02-app/           → kubectl_manifest.api_service_*
+      service-clusterip.yaml  → kubectl_manifest.migrate_job (templatefile — image_tag)
+      service-nodeport.yaml   → kubectl_manifest.api_deployment (templatefile — image_tag)
+      migrate-job.tpl.yaml    → kubectl_manifest.api_hpa
+      deployment.tpl.yaml
+      hpa.yaml
+```
+
+Cadeia de dependência garantida por `depends_on`:
+`namespace → (configmap, secret, services) → migrate_job → api_deployment → api_hpa`
+
+Nenhuma chamada a `kubectl` CLI dentro do HCL. Nenhum `null_resource` com `local-exec`. O `templatefile()` injeta variáveis sensíveis (`jwt_secret`, `external_webhook_token`, `image_tag`) no momento do `terraform apply`, protegendo-as com `sensitive_fields`.
+
 ### Secrets obrigatórios (GitHub Settings → Secrets → Actions)
 
-| Secret | Injeta em |
-|--------|----------|
-| `DB_PASSWORD` | `TF_VAR_db_password` (Terraform) + `DATABASE_URL` do Secret K8s |
-| `JWT_SECRET` | Secret `oficina-api-secrets` |
-| `EXTERNAL_WEBHOOK_TOKEN` | Secret `oficina-api-secrets` |
+| Secret | Injetado como |
+|--------|--------------|
+| `DB_PASSWORD` | `TF_VAR_db_password` → Postgres + `DATABASE_URL` no Secret K8s |
+| `JWT_SECRET` | `TF_VAR_jwt_secret` → Secret `oficina-api-secrets` via `templatefile()` |
+| `EXTERNAL_WEBHOOK_TOKEN` | `TF_VAR_external_webhook_token` → Secret `oficina-api-secrets` via `templatefile()` |
 
 `GITHUB_TOKEN` é provido automaticamente pelo GitHub Actions — nenhuma configuração necessária para autenticação no GHCR.
 

@@ -15,7 +15,7 @@ output "kubeconfig_path" {
 
 output "namespace" {
   description = "Namespace Kubernetes da aplicacao"
-  value       = kubernetes_namespace.oficina.metadata[0].name
+  value       = var.namespace
 }
 
 output "postgres_service_dns" {

@@ -10,3 +10,12 @@ db_password = "troque-em-producao"
 db_name     = "oficina_db"
 
 api_replicas = 2
+
+# Segredos da API — valores sensíveis, nunca commitar com dados reais
+jwt_secret             = "troque-em-producao"
+external_webhook_token = "troque-em-producao"
+
+# Tag da imagem Docker da API
+# Em desenvolvimento local: "latest" (após docker build -t oficina-api:latest .)
+# Em CI/CD: definido automaticamente pelo pipeline como TF_VAR_image_tag=<sha>
+image_tag = "latest"

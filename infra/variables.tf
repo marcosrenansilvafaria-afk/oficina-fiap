@@ -40,3 +40,23 @@ variable "api_replicas" {
   type        = number
   default     = 2
 }
+
+variable "jwt_secret" {
+  description = "Chave secreta para assinar tokens JWT da API"
+  type        = string
+  sensitive   = true
+  default     = "dev-jwt-secret-troque-em-producao"
+}
+
+variable "external_webhook_token" {
+  description = "Token de autenticacao para o webhook externo de aprovacao de orcamento"
+  type        = string
+  sensitive   = true
+  default     = "dev-webhook-token-troque-em-producao"
+}
+
+variable "image_tag" {
+  description = "Tag da imagem Docker da API (padrao: latest; em CI usa o SHA curto do commit)"
+  type        = string
+  default     = "latest"
+}

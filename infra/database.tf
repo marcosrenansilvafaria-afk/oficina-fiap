@@ -2,7 +2,7 @@
 resource "kubernetes_secret" "postgres_credentials" {
   metadata {
     name      = "postgres-credentials"
-    namespace = kubernetes_namespace.oficina.metadata[0].name
+    namespace = var.namespace
   }
 
   data = {
@@ -12,13 +12,15 @@ resource "kubernetes_secret" "postgres_credentials" {
   }
 
   type = "Opaque"
+
+  depends_on = [kubectl_manifest.namespace]
 }
 
 # Volume persistente para os dados do PostgreSQL
 resource "kubernetes_persistent_volume_claim" "postgres_pvc" {
   metadata {
     name      = "postgres-pvc"
-    namespace = kubernetes_namespace.oficina.metadata[0].name
+    namespace = var.namespace
   }
 
   spec {
@@ -32,13 +34,15 @@ resource "kubernetes_persistent_volume_claim" "postgres_pvc" {
   }
 
   wait_until_bound = false
+
+  depends_on = [kubectl_manifest.namespace]
 }
 
 # Deployment do PostgreSQL
 resource "kubernetes_deployment" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = kubernetes_namespace.oficina.metadata[0].name
+    namespace = var.namespace
     labels = {
       app = "postgres"
     }
@@ -116,7 +120,7 @@ resource "kubernetes_deployment" "postgres" {
 resource "kubernetes_service" "postgres" {
   metadata {
     name      = "postgres"
-    namespace = kubernetes_namespace.oficina.metadata[0].name
+    namespace = var.namespace
   }
 
   spec {
@@ -131,4 +135,6 @@ resource "kubernetes_service" "postgres" {
 
     type = "ClusterIP"
   }
+
+  depends_on = [kubectl_manifest.namespace]
 }
