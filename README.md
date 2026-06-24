@@ -6,6 +6,8 @@
 - [Stack](#stack)
 - [Como usar o `.env`](#como-usar-o-env)
 - [Como executar localmente](#como-executar-localmente)
+- [Deploy em Kubernetes](#deploy-em-kubernetes)
+- [Provisionamento via Terraform](#provisionamento-via-terraform)
 - [Testes e qualidade](#testes-e-qualidade)
 - [Entregáveis](#entregáveis)
 
@@ -131,6 +133,72 @@ Obs.: na primeira execução, aplique as migrations manualmente se o serviço `a
 docker-compose exec api npx prisma migrate deploy
 ```
 
+## Deploy em Kubernetes
+
+### Pré-requisitos
+
+- Docker, [Kind](https://kind.sigs.k8s.io), [kubectl](https://kubernetes.io/docs/tasks/tools/), [Terraform](https://developer.hashicorp.com/terraform/install) ≥ 1.6, [Helm](https://helm.sh) ≥ 3.14.
+
+### 1. Provisionar infraestrutura (Terraform)
+
+```bash
+cd infra
+cp terraform.tfvars.example terraform.tfvars  # ajustar db_password
+terraform init
+terraform apply
+```
+
+Cria: cluster Kind (1 control-plane + 2 workers), namespace `oficina`, Postgres no cluster, metrics-server (necessário para o HPA).
+
+### 2. Carregar imagem e criar Secret
+
+```bash
+# Voltar para a raiz do projeto
+cd ..
+
+docker build -t oficina-api:latest .
+kind load docker-image oficina-api:latest --name oficina
+
+kubectl create secret generic oficina-api-secrets \
+  --namespace=oficina \
+  --from-literal=DATABASE_URL="postgresql://oficina:<senha>@postgres.oficina.svc.cluster.local:5432/oficina_db" \
+  --from-literal=JWT_SECRET="<sua-chave-jwt>"
+```
+
+### 3. Aplicar manifestos
+
+```bash
+kubectl apply -k k8s/
+```
+
+### 4. Verificar
+
+```bash
+kubectl get pods -n oficina        # 2 Pods API Running + Job migrate Completed
+kubectl get hpa -n oficina         # min 2 / max 5 réplicas, alvo CPU 60%
+kubectl get secret,configmap -n oficina
+```
+
+API acessível em `http://localhost:3000` (NodePort mapeado pelo Kind).
+
+### 5. Destruir
+
+```bash
+cd infra && terraform destroy
+```
+
+## Provisionamento via Terraform
+
+Ver guia completo em [infra/README.md](infra/README.md).
+
+| Comando | Descrição |
+|---------|-----------|
+| `terraform init` | Baixa providers (kind, kubernetes, helm) |
+| `terraform plan` | Mostra o que será criado |
+| `terraform apply` | Provisiona cluster + banco + metrics-server |
+| `terraform output` | Exibe DNS do Postgres, namespace, URL da API |
+| `terraform destroy` | Destrói tudo (cluster + dados) |
+
 ## Testes e qualidade
 
 Comandos principais:
@@ -170,9 +238,16 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 - Relatório Sonar: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
 - Vídeo Fase 1 (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](./video/apresentacao-fase-1.txt)
 
-### Fase 2
+### Fase 2 — Sprint 1 (código + banco)
 
 - Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](docs/DOCUMENTACAO_ARQUITETURA.md)
 - Schema Prisma: [prisma/schema.prisma](prisma/schema.prisma)
 - Referência de requisitos Fase 2: [docs/ref/fase2.md](docs/ref/fase2.md)
 - Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
+
+### Fase 2 — Sprint 2 (IaC + Kubernetes)
+
+- Terraform (cluster + banco + metrics-server): [infra/](infra/)
+- Kubernetes (Deployment, Service, ConfigMap, Secret, HPA, Job): [k8s/](k8s/)
+- Dockerfile multi-stage: [Dockerfile](Dockerfile)
+- Entrypoint de migration automática: [docker-entrypoint.sh](docker-entrypoint.sh)

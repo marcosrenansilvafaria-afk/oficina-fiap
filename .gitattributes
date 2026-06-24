@@ -1,0 +1,5 @@
+# Normaliza line endings ao fazer commit; checkout mantém LF em scripts shell
+* text=auto
+
+# Scripts shell devem sempre ter LF (Linux/Alpine no Docker)
+*.sh text eol=lf

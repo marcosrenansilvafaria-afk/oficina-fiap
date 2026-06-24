@@ -71,13 +71,19 @@ Fora do escopo (MVP / Fase 1):
 - Monitoramento avançado (tempo médio e KPIs complexos)
 - Controle avançado de estoque
 
-Escopo adicionado na Fase 2:
+Escopo adicionado na Fase 2 — Sprint 1 (código):
 
 - Persistência relacional (PostgreSQL via Prisma 7)
 - API de consulta de status da OS
 - Webhook de aprovação/recusa de orçamento
 - Listagem ordenada de OS com filtro de status encerrados
 - Notificação simulada de alteração de status (e-mail via console)
+
+Escopo adicionado na Fase 2 — Sprint 2 (infraestrutura):
+
+- `Dockerfile` multi-stage otimizado com `prisma generate` e entrypoint de migration automática
+- Infraestrutura como Código via Terraform (`/infra`): cluster Kind + PostgreSQL + metrics-server
+- Orquestração Kubernetes (`/k8s`): Deployment, Service, ConfigMap, Secret, Job de migration, HPA (min 2 / max 5 réplicas)
 
 Observação de escopo: autenticação JWT foi implementada de forma simplificada no MVP (access token).
 
@@ -188,9 +194,10 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 
 ### 2.2.5 Deploy
 
-- Aplicação containerizada com Docker (`Dockerfile`) e orquestração local via `docker-compose.yml`.
-- `docker-compose.yml` contém dois serviços: `api` e `postgres` (imagem `postgres:16-alpine`).
-- Migrations aplicadas via `npx prisma migrate deploy` antes do start da API.
+- Aplicação containerizada com Docker (`Dockerfile` multi-stage, imagem Alpine não-root).
+- `docker-compose.yml` contém dois serviços: `api` (depende de `postgres` via `service_healthy`) e `postgres` (imagem `postgres:16-alpine`).
+- Migrations aplicadas automaticamente pelo `docker-entrypoint.sh` antes de iniciar a API — um único `docker-compose up --build` é suficiente.
+- Infraestrutura como Código (Sprint 2): cluster Kubernetes local provisionado por Terraform (`/infra`) com Kind; manifestos de orçuestração em `/k8s` aplicados via `kubectl apply -k`.
 
 ---
 
@@ -509,7 +516,7 @@ Observação: o nível C4 (código) será elaborado em etapa posterior por ser m
 
 ## 4.3 Low Level Design (LLD)
 
-- Estrutura de código (Fase 2):
+- Estrutura de código e infraestrutura (Fase 2):
 
 ```
 src/
@@ -532,6 +539,20 @@ prisma/
   migrations/           ← migrations geradas
 generated/
   prisma/client/        ← PrismaClient gerado (não versionar)
+infra/                  ← Terraform (Sprint 2)
+  versions.tf           ← providers: kind, kubernetes, helm
+  main.tf               ← kind_cluster + kubernetes_namespace
+  database.tf           ← Postgres no cluster (Secret, PVC, Deployment, Service)
+  addons.tf             ← metrics-server via Helm (habilita HPA)
+  variables.tf, outputs.tf, terraform.tfvars.example
+k8s/                    ← Manifestos Kubernetes (Sprint 2)
+  namespace.yaml, configmap.yaml, secret.example.yaml
+  migrate-job.yaml      ← Job prisma migrate deploy
+  deployment.yaml       ← API (replicas 2, probes TCP, resources)
+  service.yaml          ← ClusterIP + NodePort
+  hpa.yaml              ← min 2 / max 5 réplicas, CPU 60% / mem 70%
+  kustomization.yaml    ← kubectl apply -k k8s/
+docker-entrypoint.sh    ← aguarda banco, aplica migrations, inicia API
 ```
 
 - Camadas e responsabilidades: Domain (regras), Application (orquestra use-cases + porta de notificação), Interfaces (adapters HTTP), Infrastructure (repositórios Prisma e in-memory, notificador, singletons).
@@ -1141,33 +1162,139 @@ Matriz mínima de cenários críticos:
 
 # 8. Infraestrutura
 
-## 8.1 Dockerfile
+## 8.1 Dockerfile (Sprint 2 — multi-stage otimizado)
 
-Estado atual:
+O `Dockerfile` foi reescrito na Sprint 2 para corrigir dois problemas críticos e otimizar a imagem de produção:
 
-- O repositório possui `Dockerfile` funcional para build e execução da API NestJS.
+**Problemas corrigidos:**
+- Stage `build` agora executa `npx prisma generate` antes de `nest build` — o client gerado (`generated/prisma/`) estava ausente na build por ser gitignored.
+- Removido `COPY .env` do stage runtime — o `.env` não existe em CI e nunca deve estar em imagem de produção; variáveis chegam via `docker-compose.yml` ou Secrets do K8s.
 
-Características implementadas:
+**Otimizações:**
+- Multi-stage: stage `build` (compilação completa) → stage `runtime` (`npm ci --omit=dev`); imagem final ~60% menor.
+- Usuário não-root (`appuser`) no stage runtime — princípio de menor privilégio.
+- `generated/prisma` copiado explicitamente do stage `build` para o `runtime`.
+- Entrypoint via `docker-entrypoint.sh` em vez de `CMD` direto.
 
-- Build da aplicação com `npm run build`.
-- Runtime via `node dist/main.js`.
-- Exposição da porta `3000`.
-- Uso de imagem Node LTS baseada em Alpine.
+```
+Stage build:  node:20-alpine → npm ci → prisma generate → nest build
+Stage runtime: node:20-alpine → npm ci --omit=dev → copia dist + generated/prisma + prisma/
+               → docker-entrypoint.sh → USER appuser → EXPOSE 3000
+```
 
-## 8.2 docker-compose
+## 8.2 docker-entrypoint.sh
 
-Estado atual (Fase 2):
+Script de inicialização que garante migrations antes do start:
 
-- O repositório possui `docker-compose.yml` com dois serviços: `api` e `postgres`.
+```sh
+#!/bin/sh
+until npx prisma migrate deploy; do sleep 2; done
+exec node dist/main.js
+```
 
-Configuração atual:
+- Aguarda o banco com retry (até 30 tentativas, 2s entre elas).
+- `prisma migrate deploy` é idempotente — sem risco de reaplicar migrations já aplicadas.
+- `exec` substitui o processo shell pelo Node (PID 1), garantindo que SIGTERM chegue corretamente à API.
 
-- Serviço `api` construído a partir do `Dockerfile` local; mapeamento `3000:3000`; depende do `postgres`.
-- Serviço `postgres` — imagem `postgres:16-alpine`; porta `5432:5432`; variáveis `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` via `.env`.
+## 8.3 docker-compose (um comando)
 
-## 8.3 Execução local
+Serviços: `postgres` (healthcheck via `pg_isready`) e `api` (`depends_on: service_healthy`).
 
-Comandos para subir com banco real (Fase 2):
+```bash
+# Subir API + Banco com migrations automáticas (um comando)
+docker-compose up --build
+```
+
+O entrypoint cuida das migrations — nenhum passo manual necessário.
+
+## 8.4 Terraform — Infraestrutura como Código (`/infra`)
+
+Provisiona o cluster Kubernetes local e os recursos de banco de forma declarativa e reprodutível.
+
+**Recursos criados:**
+
+| Recurso | Descrição |
+|---------|-----------|
+| `kind_cluster` | Cluster Kind (1 control-plane + 2 workers); porta 30080 → host:3000 |
+| `kubernetes_namespace` | Namespace `oficina` |
+| `kubernetes_secret` (postgres) | Credenciais do Postgres (sensíveis, nunca em texto puro) |
+| `kubernetes_persistent_volume_claim` | PVC de 1 GiB para dados do Postgres |
+| `kubernetes_deployment` (postgres) | Pod `postgres:16-alpine` com readiness probe |
+| `kubernetes_service` (postgres) | ClusterIP — DNS: `postgres.oficina.svc.cluster.local:5432` |
+| `helm_release` (metrics-server) | metrics-server em `kube-system` — **obrigatório para o HPA** |
+
+**Execução:**
+
+```bash
+cd infra
+cp terraform.tfvars.example terraform.tfvars  # ajustar db_password
+terraform init
+terraform plan
+terraform apply
+terraform destroy  # derruba tudo (cluster + dados)
+```
+
+## 8.5 Kubernetes — Orquestração (`/k8s`)
+
+Manifestos da aplicação aplicados sobre o cluster provisionado pelo Terraform.
+
+**Fluxo de comunicação:**
+
+```
+Cliente/Browser
+   │  (HTTP NodePort 30080 → host:3000)
+   ▼
+Service NodePort ──► Service ClusterIP (oficina-api)
+                          │  load-balance
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+   Pod API #1        Pod API #2   …   Pod API #N   (2–5 réplicas — HPA)
+        │   envFrom: ConfigMap (PORT/SEED) + Secret (DATABASE_URL/JWT/tokens)
+        └──────► Service ClusterIP "postgres" ──► Pod PostgreSQL ──► PVC
+HPA ◄── metrics-server (CPU/mem dos Pods) ──► ajusta réplicas (target CPU 60%)
+Job migrate ──► Postgres (prisma migrate deploy antes do rollout)
+```
+
+**Segredos e não-segredos:**
+
+| Tipo | Conteúdo | Manifesto |
+|------|----------|-----------|
+| ConfigMap | PORT, NODE_ENV, SEED_DATA, DB_HOST/PORT/NAME | `configmap.yaml` (versionado) |
+| Secret | DATABASE_URL, JWT_SECRET, EXTERNAL_WEBHOOK_TOKEN | criado via `kubectl create secret` (não versionado) |
+
+O `secret.example.yaml` contém apenas placeholders em base64 e serve como documentação de quais chaves são esperadas.
+
+**HPA configurado:**
+
+```yaml
+minReplicas: 2
+maxReplicas: 5
+metrics:
+  - cpu: averageUtilization 60%
+  - memory: averageUtilization 70%
+```
+
+**Deploy:**
+
+```bash
+# 1. Carregar imagem local no Kind
+docker build -t oficina-api:latest .
+kind load docker-image oficina-api:latest --name oficina
+
+# 2. Criar Secret real
+kubectl create secret generic oficina-api-secrets \
+  --namespace=oficina \
+  --from-literal=DATABASE_URL="postgresql://oficina:<senha>@postgres.oficina.svc.cluster.local:5432/oficina_db" \
+  --from-literal=JWT_SECRET="<chave-segura>"
+
+# 3. Aplicar todos os manifestos
+kubectl apply -k k8s/
+
+# 4. Verificar
+kubectl get pods,hpa -n oficina
+```
+
+## 8.6 Execução local (sem K8s)
 
 ```bash
 # 1. Copiar variáveis de ambiente
@@ -1176,30 +1303,18 @@ cp .env.example .env
 # 2. Instalar dependências
 npm install
 
-# 3. Subir banco de dados
-docker-compose up -d postgres
-
-# 4. Gerar client Prisma (necessário após clone ou pull)
-npx prisma generate
-
-# 5. Aplicar migrations
-npx prisma migrate deploy
-
-# 6. Iniciar API em desenvolvimento
-npm run start:dev
-```
-
-Alternativa com container completo:
-
-```bash
+# 3. Subir banco + API (migrations automáticas via entrypoint)
 docker-compose up --build
 ```
 
-Observações:
+Para desenvolvimento com hot-reload:
 
-- `npm run start:prod` depende de build prévio em `dist` e banco de dados disponível.
-- Ao usar `docker-compose up --build`, o banco e a API sobem juntos; migrations devem ser rodadas manualmente antes da primeira execução se necessário.
-- Com `SEED_DATA=true`, dados mínimos são inseridos no banco via repositórios Prisma no startup.
+```bash
+docker-compose up -d postgres     # só o banco
+npx prisma generate
+npx prisma migrate deploy
+npm run start:dev
+```
 
 ---
 
@@ -1320,11 +1435,12 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 # 12. Considerações Finais
 
-- **Evolução Fase 1 → Fase 2:** migração de persistência in-memory para PostgreSQL via Prisma 7 sem alterar a estrutura de domínio ou a estratégia de singletons; novas APIs (status, webhook, listagem ordenada) e notificação simulada de e-mail entregues dentro do escopo.
+- **Evolução Fase 1 → Fase 2 Sprint 1:** migração de persistência in-memory para PostgreSQL via Prisma 7 sem alterar estrutura de domínio ou estratégia de singletons; novas APIs (status, webhook, listagem ordenada) e notificação simulada de e-mail entregues.
+- **Evolução Fase 2 Sprint 2:** `Dockerfile` multi-stage corrigido e otimizado; entrypoint com migration automática; infraestrutura como código via Terraform (`/infra` — cluster Kind + Postgres + metrics-server); orquestração Kubernetes (`/k8s` — Deployment, Service, ConfigMap, Secret, HPA min 2/max 5).
 - **Limitações conhecidas:** autenticação sem refresh token, análise de segurança com fallback conceitual quando Sonar não estiver disponível, monitoramento simplificado por timestamps no fluxo da OS, ausência de transações Prisma nos fluxos multi-step.
 - **Próximos passos:**
-  1. Infraestrutura como código (Terraform + Kubernetes) — Sprint 2.
-  2. Pipeline CI/CD (GitHub Actions) — Sprint 3.
+  1. Pipeline CI/CD com build de imagem + deploy no cluster Kubernetes — Sprint 3.
+  2. Swagger/Postman collection completa + vídeo de demo — Sprint 4.
   3. Transações Prisma para garantir atomicidade nos fluxos de escrita da OS.
   4. Evoluir observabilidade quando houver requisito de produção com SLA.
 
