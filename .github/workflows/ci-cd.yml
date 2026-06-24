@@ -180,6 +180,8 @@ jobs:
 
       # Fase 2 — Terraform gerencia TODOS os recursos K8s via kubectl_manifest:
       # namespace → configmap + secret → services → migrate-job → deployment → hpa
+      # Os recursos com wait_for_rollout=false são apenas submetidos ao cluster;
+      # a verificação real é feita nos passos abaixo via kubectl.
       - name: Terraform apply — infraestrutura completa + app K8s
         working-directory: infra
         run: terraform apply -auto-approve -input=false
@@ -188,6 +190,15 @@ jobs:
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
           TF_VAR_external_webhook_token: ${{ secrets.EXTERNAL_WEBHOOK_TOKEN }}
           TF_VAR_image_tag: ${{ needs.docker-build.outputs.short-sha }}
+
+      - name: Aguardar migration Job completar
+        run: kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=120s
+
+      - name: Aguardar rollout da API
+        run: kubectl rollout status deployment/oficina-api -n oficina --timeout=180s
+
+      - name: Verificar HPA
+        run: kubectl get hpa -n oficina
 
       - name: Smoke test (GET /docs)
         run: |
