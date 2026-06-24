@@ -211,19 +211,21 @@ Pipeline definido em [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml).
 | `build-lint` | push/PR → main | `npm ci` → `prisma generate` → `nest build` → `lint` |
 | `test` | após build-lint | testes unitários + e2e + **quality gate cobertura ≥ 80%** |
 | `docker-build` | após test | build multi-stage → push imagem para **GHCR** (tag `:sha-<7chars>` + `:latest`) |
-| `deploy` | após docker-build, **nunca em PR** | Terraform (Kind + Postgres + metrics-server) → `kind load` → Kustomize com SHA → migration Job → rollout → smoke test |
+| `deploy` | após docker-build, **nunca em PR** | Fase 1: `terraform apply -target=kind_cluster` → `kind load` / Fase 2: `terraform apply` (orquestra todos os recursos K8s via `kubectl_manifest`) → smoke test |
+
+**IaC declarativa pura:** o Terraform gerencia **todos** os recursos Kubernetes (namespace, ConfigMap, Secret, Job de migration, Deployment, Services, HPA) via `kubectl_manifest` com `depends_on` encadeados — sem `kubectl` CLI no pipeline, sem `local-exec` no HCL.
 
 **Secrets obrigatórios** (configurar em Settings → Secrets and variables → Actions):
 
 | Secret | Usado em |
 |--------|---------|
-| `DB_PASSWORD` | Terraform (`TF_VAR_db_password`) e `DATABASE_URL` do Secret K8s |
-| `JWT_SECRET` | Secret `oficina-api-secrets` no cluster |
-| `EXTERNAL_WEBHOOK_TOKEN` | Secret `oficina-api-secrets` no cluster |
+| `DB_PASSWORD` | `TF_VAR_db_password` → Postgres + `DATABASE_URL` do Secret K8s |
+| `JWT_SECRET` | `TF_VAR_jwt_secret` → Secret `oficina-api-secrets` |
+| `EXTERNAL_WEBHOOK_TOKEN` | `TF_VAR_external_webhook_token` → Secret `oficina-api-secrets` |
 
 `GITHUB_TOKEN` é automático — usado para push da imagem no GHCR (nenhuma configuração necessária).
 
-**Rastreabilidade:** cada imagem publicada no GHCR recebe a tag `sha-<7chars>` do commit que a gerou. O Kustomize sobrescreve a tag no manifesto do Deployment antes de aplicar, garantindo que o cluster sempre rode exatamente o código do commit que disparou o pipeline.
+**Rastreabilidade:** cada imagem publicada no GHCR recebe a tag `sha-<7chars>` do commit que a gerou. O Terraform injeta a tag via `TF_VAR_image_tag` e o `templatefile()` substitui no manifesto do Deployment, garantindo que o cluster rode exatamente o código do commit que disparou o pipeline.
 
 ## Testes e qualidade
 

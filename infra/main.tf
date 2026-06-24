@@ -33,7 +33,7 @@ resource "kind_cluster" "oficina" {
   }
 }
 
-# Providers kubernetes e helm apontam para o cluster Kind recem criado
+# Providers apontam para as credenciais do cluster Kind recem criado
 provider "kubernetes" {
   host                   = kind_cluster.oficina.endpoint
   cluster_ca_certificate = kind_cluster.oficina.cluster_ca_certificate
@@ -50,11 +50,10 @@ provider "helm" {
   }
 }
 
-# Namespace da aplicacao
-resource "kubernetes_namespace" "oficina" {
-  metadata {
-    name = var.namespace
-  }
-
-  depends_on = [kind_cluster.oficina]
+provider "kubectl" {
+  host                   = kind_cluster.oficina.endpoint
+  cluster_ca_certificate = kind_cluster.oficina.cluster_ca_certificate
+  client_certificate     = kind_cluster.oficina.client_certificate
+  client_key             = kind_cluster.oficina.client_key
+  load_config_file       = false
 }
