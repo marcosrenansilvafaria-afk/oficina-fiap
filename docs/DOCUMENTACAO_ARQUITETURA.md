@@ -85,6 +85,10 @@ Escopo adicionado na Fase 2 — Sprint 2 (infraestrutura):
 - Infraestrutura como Código via Terraform (`/infra`): cluster Kind + PostgreSQL + metrics-server
 - Orquestração Kubernetes (`/k8s`): Deployment, Service, ConfigMap, Secret, Job de migration, HPA (min 2 / max 5 réplicas)
 
+Escopo adicionado na Fase 2 — Sprint 3 (automação):
+
+- Pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd.yml`): build → lint → testes + quality gate → build/push imagem GHCR → deploy automatizado no cluster Kind com rastreabilidade por SHA
+
 Observação de escopo: autenticação JWT foi implementada de forma simplificada no MVP (access token).
 
 ---
@@ -198,6 +202,7 @@ Observação de escopo: autenticação JWT foi implementada de forma simplificad
 - `docker-compose.yml` contém dois serviços: `api` (depende de `postgres` via `service_healthy`) e `postgres` (imagem `postgres:16-alpine`).
 - Migrations aplicadas automaticamente pelo `docker-entrypoint.sh` antes de iniciar a API — um único `docker-compose up --build` é suficiente.
 - Infraestrutura como Código (Sprint 2): cluster Kubernetes local provisionado por Terraform (`/infra`) com Kind; manifestos de orçuestração em `/k8s` aplicados via `kubectl apply -k`.
+- Pipeline CI/CD (Sprint 3): GitHub Actions com 4 jobs encadeados (`build-lint → test → docker-build → deploy`); imagem publicada no GHCR com tag por SHA; deploy automatizado no cluster Kind via Terraform + Kustomize.
 
 ---
 
@@ -1316,6 +1321,94 @@ npx prisma migrate deploy
 npm run start:dev
 ```
 
+## 8.7 CI/CD — Pipeline GitHub Actions (Sprint 3)
+
+O arquivo `.github/workflows/ci-cd.yml` define a esteira completa de integração e entrega contínua.
+
+### Gatilhos
+
+| Evento | Gatilho | Jobs executados |
+|--------|---------|----------------|
+| `push` → `main` | automático | todos (build → test → docker → deploy) |
+| `pull_request` → `main` | automático | build + test + docker-build (sem push e sem deploy) |
+| `workflow_dispatch` | manual | todos (útil para gravar demo do vídeo) |
+
+### Jobs encadeados (`needs:`)
+
+```
+build-lint ──► test ──► docker-build ──► deploy
+                                          │
+                                   (if: não-PR, só main)
+```
+
+Cada job só inicia se o anterior passar inteiro. Uma falha de lint, teste ou build impede que qualquer imagem seja publicada ou qualquer deploy seja feito.
+
+### Job 1 — `build-lint`
+
+- `npm ci` → `npx prisma generate` → `npm run build` → `npm run lint`
+- Node 20 (alinhado ao `node:20-alpine` do Dockerfile de produção)
+- Publica artefato `dist/` para reuso
+
+### Job 2 — `test` (Quality Gate)
+
+- `npm run test` (unit) + `npm run test:e2e` + `npm run test:cov:critical` (**≥ 80% cobertura crítica**)
+- Testes não precisam de Postgres — o Jest usa `moduleNameMapper` para mockar o Prisma client
+- Um único falso negativo de cobertura bloqueia todo o pipeline downstream
+
+### Job 3 — `docker-build`
+
+- Build da imagem multi-stage a partir do `Dockerfile` já otimizado (Sprint 2)
+- Push para **GHCR** (`ghcr.io/<owner>/<repo>`) autenticado via `GITHUB_TOKEN` (automático, sem secret extra)
+- Tags geradas: `:sha-<7chars>` (rastreabilidade) + `:latest` (apenas em push na `main`)
+- Em PRs: build executado, push não realizado (valida o Dockerfile sem publicar)
+- Cache de camadas via `cache-from/cache-to: type=gha` — builds subsequentes até 5× mais rápidos
+
+### Job 4+5 — `deploy` (mesmo runner)
+
+**Por que em um runner único:** o cluster Kind (Kubernetes em Docker) é criado nos containers do runner. Jobs separados no GitHub Actions rodam em VMs distintas e independentes — o cluster criado no "Job 4" não existiria mais no "Job 5". Consolidar em etapas sequenciais dentro de um único job é o padrão correto para clusters efêmeros.
+
+**Etapa 4 — Infraestrutura (Terraform):**
+1. Instala Kind CLI e kustomize (não pré-instalados no runner)
+2. `terraform init && terraform apply -auto-approve` — provisiona cluster Kind + Postgres + metrics-server exatamente como no ambiente local
+3. `kind export kubeconfig` — aponta kubectl para o cluster recém-criado
+
+**Etapa 5 — Deploy da aplicação (K8s):**
+4. `docker pull ghcr.io/.../oficina-api:sha-<sha>` — baixa a imagem publicada pelo Job 3
+5. `kind load docker-image oficina-api:<sha>` — carrega no registry interno do Kind (necessário por `imagePullPolicy: Never`)
+6. `kustomize edit set image oficina-api=oficina-api:<sha>` — sobrescreve a tag no `kustomization.yaml` local, garantindo que o cluster rode exatamente o commit que disparou o pipeline
+7. `kubectl create secret generic oficina-api-secrets --dry-run=client | kubectl apply` — idempotente; lê credenciais dos GitHub Secrets
+8. `kubectl apply -k k8s/` — aplica todos os manifestos via Kustomize
+9. `kubectl wait --for=condition=complete job/prisma-migrate` — aguarda a migration terminar antes de declarar sucesso
+10. `kubectl rollout status deployment/oficina-api` — confirma que os Pods estão Running e Healthy
+11. `kubectl get hpa` — prova min 2 / max 5 réplicas configuradas
+12. `curl http://localhost:3000/docs` — smoke test via NodePort mapeado pelo Kind
+
+### Secrets obrigatórios (GitHub Settings → Secrets → Actions)
+
+| Secret | Injeta em |
+|--------|----------|
+| `DB_PASSWORD` | `TF_VAR_db_password` (Terraform) + `DATABASE_URL` do Secret K8s |
+| `JWT_SECRET` | Secret `oficina-api-secrets` |
+| `EXTERNAL_WEBHOOK_TOKEN` | Secret `oficina-api-secrets` |
+
+`GITHUB_TOKEN` é provido automaticamente pelo GitHub Actions — nenhuma configuração necessária para autenticação no GHCR.
+
+### Rastreabilidade SHA → imagem → cluster
+
+```
+git commit abc1234
+    │
+    ▼ push main
+Job docker-build → ghcr.io/.../oficina-api:sha-abc1234
+    │
+    ▼ Job deploy
+kustomize edit set image → deployment usa oficina-api:abc1234
+kind load → Kind encontra a imagem localmente
+kubectl apply-k → Pods sobem com a imagem do commit abc1234
+```
+
+Qualquer Pod running em qualquer momento pode ser rastreado até o commit exato que o gerou — sem ambiguidade de `:latest`.
+
 ---
 
 # 9. Qualidade de Software
@@ -1437,12 +1530,12 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 - **Evolução Fase 1 → Fase 2 Sprint 1:** migração de persistência in-memory para PostgreSQL via Prisma 7 sem alterar estrutura de domínio ou estratégia de singletons; novas APIs (status, webhook, listagem ordenada) e notificação simulada de e-mail entregues.
 - **Evolução Fase 2 Sprint 2:** `Dockerfile` multi-stage corrigido e otimizado; entrypoint com migration automática; infraestrutura como código via Terraform (`/infra` — cluster Kind + Postgres + metrics-server); orquestração Kubernetes (`/k8s` — Deployment, Service, ConfigMap, Secret, HPA min 2/max 5).
+- **Evolução Fase 2 Sprint 3:** Pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd.yml`): 4 jobs encadeados `build-lint → test → docker-build → deploy`; imagem publicada no GHCR com rastreabilidade por SHA (`sha-<7chars>`); deploy automatizado end-to-end no cluster Kind com `terraform apply` + Kustomize + smoke test.
 - **Limitações conhecidas:** autenticação sem refresh token, análise de segurança com fallback conceitual quando Sonar não estiver disponível, monitoramento simplificado por timestamps no fluxo da OS, ausência de transações Prisma nos fluxos multi-step.
 - **Próximos passos:**
-  1. Pipeline CI/CD com build de imagem + deploy no cluster Kubernetes — Sprint 3.
-  2. Swagger/Postman collection completa + vídeo de demo — Sprint 4.
-  3. Transações Prisma para garantir atomicidade nos fluxos de escrita da OS.
-  4. Evoluir observabilidade quando houver requisito de produção com SLA.
+  1. Swagger/Postman collection completa + vídeo de demo (15 min: pipeline em execução, deploy K8s, HPA escalando) — Sprint 4.
+  2. Transações Prisma para garantir atomicidade nos fluxos de escrita da OS.
+  3. Evoluir observabilidade quando houver requisito de produção com SLA.
 
 ## 12.1 Lições Arquiteturais — Referência para Projetos Futuros
 

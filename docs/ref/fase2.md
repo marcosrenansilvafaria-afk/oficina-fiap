@@ -200,3 +200,6 @@ HPA	Autoscaling horizontal baseado em observabilidade
 PVC	Persistência de dados além do ciclo de vida do Pod
 Job K8s	Tarefa única (migration) separada do Deployment
 metrics-server	Provedor da metrics API — habilita o HPA
+
+jwt_token: 7cc60abf3f6613ed900a1d6bcf189a4373d718293a880e42703d0168162c6dd4
+EXTERNAL_WEBHOOK_TOKEN = mrsfrif_external

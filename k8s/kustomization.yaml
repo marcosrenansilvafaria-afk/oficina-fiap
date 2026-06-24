@@ -8,3 +8,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - hpa.yaml
+
+# Tag sobrescrita em CI por: kustomize edit set image oficina-api=oficina-api:<sha>
+images:
+  - name: oficina-api
+    newTag: latest

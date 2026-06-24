@@ -1,5 +1,7 @@
 # Oficina FIAP - MVP Backend
 
+[![CI/CD](https://github.com/marcosrenansilvafaria-afk/oficina-fiap/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/marcosrenansilvafaria-afk/oficina-fiap/actions/workflows/ci-cd.yml)
+
 ## Sumário
 
 - [Objetivo](#objetivo)
@@ -8,6 +10,7 @@
 - [Como executar localmente](#como-executar-localmente)
 - [Deploy em Kubernetes](#deploy-em-kubernetes)
 - [Provisionamento via Terraform](#provisionamento-via-terraform)
+- [CI/CD (GitHub Actions)](#cicd-github-actions)
 - [Testes e qualidade](#testes-e-qualidade)
 - [Entregáveis](#entregáveis)
 
@@ -199,6 +202,29 @@ Ver guia completo em [infra/README.md](infra/README.md).
 | `terraform output` | Exibe DNS do Postgres, namespace, URL da API |
 | `terraform destroy` | Destrói tudo (cluster + dados) |
 
+## CI/CD (GitHub Actions)
+
+Pipeline definido em [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml).
+
+| Job | Gatilho | O que faz |
+|-----|---------|-----------|
+| `build-lint` | push/PR → main | `npm ci` → `prisma generate` → `nest build` → `lint` |
+| `test` | após build-lint | testes unitários + e2e + **quality gate cobertura ≥ 80%** |
+| `docker-build` | após test | build multi-stage → push imagem para **GHCR** (tag `:sha-<7chars>` + `:latest`) |
+| `deploy` | após docker-build, **nunca em PR** | Terraform (Kind + Postgres + metrics-server) → `kind load` → Kustomize com SHA → migration Job → rollout → smoke test |
+
+**Secrets obrigatórios** (configurar em Settings → Secrets and variables → Actions):
+
+| Secret | Usado em |
+|--------|---------|
+| `DB_PASSWORD` | Terraform (`TF_VAR_db_password`) e `DATABASE_URL` do Secret K8s |
+| `JWT_SECRET` | Secret `oficina-api-secrets` no cluster |
+| `EXTERNAL_WEBHOOK_TOKEN` | Secret `oficina-api-secrets` no cluster |
+
+`GITHUB_TOKEN` é automático — usado para push da imagem no GHCR (nenhuma configuração necessária).
+
+**Rastreabilidade:** cada imagem publicada no GHCR recebe a tag `sha-<7chars>` do commit que a gerou. O Kustomize sobrescreve a tag no manifesto do Deployment antes de aplicar, garantindo que o cluster sempre rode exatamente o código do commit que disparou o pipeline.
+
 ## Testes e qualidade
 
 Comandos principais:
@@ -251,3 +277,8 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 - Kubernetes (Deployment, Service, ConfigMap, Secret, HPA, Job): [k8s/](k8s/)
 - Dockerfile multi-stage: [Dockerfile](Dockerfile)
 - Entrypoint de migration automática: [docker-entrypoint.sh](docker-entrypoint.sh)
+
+### Fase 2 — Sprint 3 (CI/CD)
+
+- Pipeline GitHub Actions: [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
+- Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
