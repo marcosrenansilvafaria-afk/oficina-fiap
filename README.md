@@ -282,3 +282,4 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 
 - Pipeline GitHub Actions: [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
 - Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
+- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.mp4](docs/video/apresentacao-fase-1.txt)
