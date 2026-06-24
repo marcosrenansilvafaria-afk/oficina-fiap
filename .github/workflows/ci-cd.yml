@@ -161,6 +161,13 @@ jobs:
       - name: Export kubeconfig
         run: kind export kubeconfig --name oficina
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Pull imagem do GHCR e carregar no Kind
         env:
           SHORT_SHA: ${{ needs.docker-build.outputs.short-sha }}
