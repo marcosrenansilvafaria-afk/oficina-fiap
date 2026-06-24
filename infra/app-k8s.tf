@@ -3,17 +3,12 @@ locals {
 }
 
 # ── 00-namespaces ───────────────────────────────────────────────────────────
-# O namespace nasce primeiro; todos os demais recursos dependem dele.
-
 resource "kubectl_manifest" "namespace" {
   yaml_body  = file("${path.module}/manifests/00-namespaces/namespace.yaml")
   depends_on = [kind_cluster.oficina]
 }
 
 # ── 01-config ───────────────────────────────────────────────────────────────
-# ConfigMap (não-sensível) e Secret (sensível via templatefile + sensitive_fields)
-# nascem após o namespace e antes dos recursos de app.
-
 resource "kubectl_manifest" "configmap" {
   yaml_body  = file("${path.module}/manifests/01-config/configmap.yaml")
   depends_on = [kubectl_manifest.namespace]
@@ -34,8 +29,6 @@ resource "kubectl_manifest" "api_secret" {
 }
 
 # ── 02-app ──────────────────────────────────────────────────────────────────
-# Services sobem junto com o namespace (não dependem de Pods).
-
 resource "kubectl_manifest" "api_service_clusterip" {
   yaml_body  = file("${path.module}/manifests/02-app/service-clusterip.yaml")
   depends_on = [kubectl_manifest.namespace]
@@ -46,13 +39,13 @@ resource "kubectl_manifest" "api_service_nodeport" {
   depends_on = [kubectl_manifest.namespace]
 }
 
-# Job de migration: aguarda Postgres estar Running antes de tentar conectar.
-# backoffLimit=5 garante retries automáticos se o banco ainda não estiver pronto.
-
+# wait_for_rollout = false: o provider apenas submete o Job ao cluster.
+# A conclusão real do Job é verificada no CI via "kubectl wait --for=condition=complete".
 resource "kubectl_manifest" "migrate_job" {
   yaml_body = templatefile("${path.module}/manifests/02-app/migrate-job.tpl.yaml", {
     image_tag = var.image_tag
   })
+  wait_for_rollout = false
   depends_on = [
     kubectl_manifest.configmap,
     kubectl_manifest.api_secret,
@@ -61,18 +54,19 @@ resource "kubectl_manifest" "migrate_job" {
   ]
 }
 
-# Deployment da API só nasce após o Job de migration ser submetido ao cluster.
-
+# wait_for_rollout = false: o rollout é verificado no CI via "kubectl rollout status".
+# Isso evita o timeout de 10 min do provider enquanto a API aguarda a migration.
 resource "kubectl_manifest" "api_deployment" {
   yaml_body = templatefile("${path.module}/manifests/02-app/deployment.tpl.yaml", {
     image_tag = var.image_tag
   })
-  depends_on = [kubectl_manifest.migrate_job]
+  wait_for_rollout = false
+  depends_on       = [kubectl_manifest.migrate_job]
 }
 
-# HPA depende do Deployment existir E do metrics-server estar instalado.
-
+# wait_for_rollout = false: o HPA não tem condição "Ready" — só precisa existir.
 resource "kubectl_manifest" "api_hpa" {
-  yaml_body  = file("${path.module}/manifests/02-app/hpa.yaml")
-  depends_on = [kubectl_manifest.api_deployment, helm_release.metrics_server]
+  yaml_body        = file("${path.module}/manifests/02-app/hpa.yaml")
+  wait_for_rollout = false
+  depends_on       = [kubectl_manifest.api_deployment, helm_release.metrics_server]
 }
