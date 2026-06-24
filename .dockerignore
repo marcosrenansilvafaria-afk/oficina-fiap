@@ -2,4 +2,12 @@ node_modules
 dist
 .git
 .gitignore
-README.md
+.env
+.env.*
+generated
+coverage
+test
+infra
+k8s
+.github
+*.md

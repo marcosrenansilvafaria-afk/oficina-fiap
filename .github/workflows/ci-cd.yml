@@ -1,0 +1,213 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Job 1 ──────────────────────────────────────────────────────────────────
+  build-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build (NestJS)
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  # ── Job 2 ──────────────────────────────────────────────────────────────────
+  test:
+    name: Tests & Quality Gate
+    needs: build-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Critical coverage gate (>= 80%)
+        run: npm run test:cov:critical
+
+  # ── Job 3 ──────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build & Push (GHCR)
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      short-sha: ${{ steps.sha.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute short SHA
+        id: sha
+        run: echo "value=$(echo '${{ github.sha }}' | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Jobs 4+5 (mesmo runner — cluster Kind é efêmero, não sobrevive entre jobs)
+  deploy:
+    name: Deploy (Terraform + K8s)
+    needs: docker-build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Kind CLI
+        run: |
+          curl -Lo kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+          chmod +x kind && sudo mv kind /usr/local/bin/kind
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.6"
+          terraform_wrapper: false
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      # ── Etapa 4: Infraestrutura (Terraform) ───────────────────────────────
+      - name: Terraform init
+        working-directory: infra
+        run: terraform init
+
+      - name: Terraform apply (Kind + Postgres + metrics-server)
+        working-directory: infra
+        run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+
+      - name: Export kubeconfig
+        run: kind export kubeconfig --name oficina
+
+      # ── Etapa 5: Deploy da Aplicação ──────────────────────────────────────
+      - name: Pull imagem do GHCR e carregar no Kind
+        env:
+          SHORT_SHA: ${{ needs.docker-build.outputs.short-sha }}
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${SHORT_SHA}"
+          IMAGE="${IMAGE,,}"
+          docker pull "$IMAGE"
+          docker tag "$IMAGE" "oficina-api:${SHORT_SHA}"
+          kind load docker-image "oficina-api:${SHORT_SHA}" --name oficina
+
+      - name: Override image tag no Kustomize (rastreabilidade SHA)
+        working-directory: k8s
+        env:
+          SHORT_SHA: ${{ needs.docker-build.outputs.short-sha }}
+        run: kustomize edit set image oficina-api=oficina-api:${SHORT_SHA}
+
+      - name: Criar Secret da API (idempotente)
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          EXTERNAL_WEBHOOK_TOKEN: ${{ secrets.EXTERNAL_WEBHOOK_TOKEN }}
+        run: |
+          kubectl create secret generic oficina-api-secrets \
+            --namespace=oficina \
+            --from-literal=DATABASE_URL="postgresql://oficina:${DB_PASSWORD}@postgres.oficina.svc.cluster.local:5432/oficina_db" \
+            --from-literal=JWT_SECRET="${JWT_SECRET}" \
+            --from-literal=EXTERNAL_WEBHOOK_TOKEN="${EXTERNAL_WEBHOOK_TOKEN}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Aplicar manifestos Kubernetes
+        run: kubectl apply -k k8s/
+
+      - name: Aguardar Job de migration
+        run: kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=120s
+
+      - name: Aguardar rollout da API
+        run: kubectl rollout status deployment/oficina-api -n oficina --timeout=180s
+
+      - name: Verificar HPA (min 2 / max 5)
+        run: kubectl get hpa -n oficina
+
+      - name: Smoke test (GET /docs)
+        run: |
+          sleep 10
+          curl --fail --silent --show-error http://localhost:3000/docs > /dev/null \
+            || { kubectl logs -l app=oficina-api -n oficina --tail=50; exit 1; }
+          echo "Smoke test passou: API respondendo em http://localhost:3000/docs"

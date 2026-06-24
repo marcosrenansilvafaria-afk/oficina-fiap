@@ -1,21 +1,24 @@
 import { Cliente } from '../domain/entities/cliente';
+import { IClienteRepository } from '../domain/repositories/cliente-repository.interface';
 
-export class InMemoryClienteRepository {
+export class InMemoryClienteRepository implements IClienteRepository {
   private store = new Map<string, Cliente>();
 
-  save(cliente: Cliente) {
+  save(cliente: Cliente): Promise<void> {
     this.store.set(cliente.id, cliente);
+    return Promise.resolve();
   }
 
-  getById(id: string): Cliente | undefined {
-    return this.store.get(id);
+  getById(id: string): Promise<Cliente | null> {
+    return Promise.resolve(this.store.get(id) ?? null);
   }
 
-  all(): Cliente[] {
-    return Array.from(this.store.values());
+  all(): Promise<Cliente[]> {
+    return Promise.resolve(Array.from(this.store.values()));
   }
 
-  clear() {
+  clear(): Promise<void> {
     this.store.clear();
+    return Promise.resolve();
   }
 }

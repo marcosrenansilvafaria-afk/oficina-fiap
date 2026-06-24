@@ -1,0 +1,12 @@
+# Copie este arquivo para terraform.tfvars e ajuste os valores.
+# NUNCA versione o terraform.tfvars com senhas reais.
+
+cluster_name = "oficina"
+node_image   = "kindest/node:v1.30.0"
+namespace    = "oficina"
+
+db_user     = "oficina"
+db_password = "troque-em-producao"
+db_name     = "oficina_db"
+
+api_replicas = 2

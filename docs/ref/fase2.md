@@ -183,3 +183,23 @@ Por envolver diversas frentes de DevOps e configuração de pipelines, o tempo e
 ## Tempo Total Estimado
 
 **34 a 42 horas de trabalho**
+
+
+## Conceitos para rever:Conceito	Onde está no projeto
+Multi-stage build	Dockerfile — stage build + stage runtime
+Imagem sem segredo	Sem COPY .env; variáveis chegam por environment: no compose ou Secret K8s
+Usuário não-root	USER appuser no stage runtime
+Graceful shutdown	exec node dist/main.js no entrypoint
+IaC declarativa	/infra/*.tf — Terraform descreve estado desejado
+Idempotência	terraform apply e prisma migrate deploy são idempotentes
+Namespace K8s	Isolamento de recursos (oficina)
+ConfigMap vs Secret	Separação por sensibilidade
+Liveness vs Readiness	Diferentes consequências de falha
+Resources requests/limits	Obrigatório para HPA funcionar
+HPA	Autoscaling horizontal baseado em observabilidade
+PVC	Persistência de dados além do ciclo de vida do Pod
+Job K8s	Tarefa única (migration) separada do Deployment
+metrics-server	Provedor da metrics API — habilita o HPA
+
+jwt_token: 7cc60abf3f6613ed900a1d6bcf189a4373d718293a880e42703d0168162c6dd4
+EXTERNAL_WEBHOOK_TOKEN = mrsfrif_external

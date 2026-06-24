@@ -6,47 +6,49 @@ import { InMemoryVeiculoRepository } from '../../infraestructure/in-memory-veicu
 import { CriarOrdemServico } from './criar-ordem-servico';
 
 describe('CriarOrdemServico', () => {
-  it('deve criar e salvar OS com status RECEBIDA', () => {
+  it('deve criar e salvar OS com status RECEBIDA', async () => {
     const ordemRepo = new InMemoryOrdemRepository();
     const useCase = new CriarOrdemServico(ordemRepo);
 
-    const os = useCase.execute();
+    const os = await useCase.execute();
 
     expect(os.id).toBeDefined();
     expect(os.getStatus()).toBe('RECEBIDA');
-    expect(ordemRepo.getById(os.id)).toBeDefined();
+    expect(await ordemRepo.getById(os.id)).toBeDefined();
   });
 
-  it('deve validar clienteId quando repositorio de clientes for informado', () => {
+  it('deve validar clienteId quando repositorio de clientes for informado', async () => {
     const ordemRepo = new InMemoryOrdemRepository();
     const clienteRepo = new InMemoryClienteRepository();
     const veiculoRepo = new InMemoryVeiculoRepository();
 
     const useCase = new CriarOrdemServico(ordemRepo, clienteRepo, veiculoRepo);
 
-    expect(() => useCase.execute({ clienteId: 'invalido' })).toThrow(
+    await expect(useCase.execute({ clienteId: 'invalido' })).rejects.toThrow(
       'clienteId inválido',
     );
 
-    clienteRepo.save(new Cliente('c1', 'Joao', '12345678901'));
-    const os = useCase.execute({ clienteId: 'c1' });
+    await clienteRepo.save(new Cliente('c1', 'Joao', '12345678901'));
+    const os = await useCase.execute({ clienteId: 'c1' });
 
     expect(os.clienteId).toBe('c1');
   });
 
-  it('deve validar veiculoId quando repositorio de veiculos for informado', () => {
+  it('deve validar veiculoId quando repositorio de veiculos for informado', async () => {
     const ordemRepo = new InMemoryOrdemRepository();
     const clienteRepo = new InMemoryClienteRepository();
     const veiculoRepo = new InMemoryVeiculoRepository();
 
     const useCase = new CriarOrdemServico(ordemRepo, clienteRepo, veiculoRepo);
 
-    expect(() => useCase.execute({ veiculoId: 'invalido' })).toThrow(
+    await expect(useCase.execute({ veiculoId: 'invalido' })).rejects.toThrow(
       'veiculoId inválido',
     );
 
-    veiculoRepo.save(new Veiculo('v1', 'ABC1D23', 'Onix', 'Chevrolet', 2022));
-    const os = useCase.execute({ veiculoId: 'v1' });
+    await veiculoRepo.save(
+      new Veiculo('v1', 'ABC1D23', 'Onix', 'Chevrolet', 2022),
+    );
+    const os = await useCase.execute({ veiculoId: 'v1' });
 
     expect(os.veiculoId).toBe('v1');
   });

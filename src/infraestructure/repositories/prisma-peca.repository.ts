@@ -11,7 +11,12 @@ export class PrismaPecaRepository implements IPecaRepository {
     await this.prisma.peca.upsert({
       where: { id: peca.id },
       update: { nome: peca.nome, preco: peca.preco, estoque: peca.estoque },
-      create: { id: peca.id, nome: peca.nome, preco: peca.preco, estoque: peca.estoque },
+      create: {
+        id: peca.id,
+        nome: peca.nome,
+        preco: peca.preco,
+        estoque: peca.estoque,
+      },
     });
   }
 

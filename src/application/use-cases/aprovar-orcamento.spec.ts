@@ -6,7 +6,7 @@ import { GerarOrcamento } from './gerar-orcamento';
 import { IniciarDiagnostico } from './iniciar-diagnostico';
 
 describe('AprovarOrcamento', () => {
-  it('deve aprovar orcamento quando status for AGUARDANDO_APROVACAO', () => {
+  it('deve aprovar orcamento quando status for AGUARDANDO_APROVACAO', async () => {
     const ordemRepo = new InMemoryOrdemRepository();
     const criar = new CriarOrdemServico(ordemRepo);
     const iniciarDiag = new IniciarDiagnostico(ordemRepo);
@@ -14,25 +14,27 @@ describe('AprovarOrcamento', () => {
     const gerar = new GerarOrcamento(ordemRepo);
     const aprovar = new AprovarOrcamento(ordemRepo);
 
-    const os = criar.execute();
-    iniciarDiag.execute(os.id);
-    addItem.execute(os.id, {
+    const os = await criar.execute();
+    await iniciarDiag.execute(os.id);
+    await addItem.execute(os.id, {
       tipo: 'SERVICO',
       descricao: 'Troca',
       preco: 100,
       quantidade: 1,
     });
-    gerar.execute(os.id);
+    await gerar.execute(os.id);
 
-    const atualizada = aprovar.execute(os.id);
+    const atualizada = await aprovar.execute(os.id);
 
     expect(atualizada.getStatus()).toBe('APROVADA');
   });
 
-  it('deve falhar quando OS nao existe', () => {
+  it('deve falhar quando OS nao existe', async () => {
     const ordemRepo = new InMemoryOrdemRepository();
     const aprovar = new AprovarOrcamento(ordemRepo);
 
-    expect(() => aprovar.execute('nao-existe')).toThrow('OS não encontrada');
+    await expect(aprovar.execute('nao-existe')).rejects.toThrow(
+      'OS não encontrada',
+    );
   });
 });

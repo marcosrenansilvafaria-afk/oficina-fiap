@@ -1,4 +1,37 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { StatusOrdemServico } from '../../../domain/entities/ordem-servico';
+
+export class StatusOrdemServicoResponseDto {
+  @ApiProperty({ example: '8f42d860-a4f4-4cb5-a2d7-2d8bc7fbf9f3' })
+  id!: string;
+
+  @ApiProperty({
+    enum: [
+      'RECEBIDA',
+      'EM_DIAGNOSTICO',
+      'AGUARDANDO_APROVACAO',
+      'APROVADA',
+      'EM_EXECUCAO',
+      'FINALIZADA',
+      'ENTREGUE',
+    ],
+  })
+  status!: StatusOrdemServico;
+
+  @ApiProperty({ example: 'Em Execução' })
+  statusLabel!: string;
+
+  @ApiPropertyOptional({ example: '2024-01-15T10:30:00.000Z' })
+  atualizadoEm?: string;
+}
+
+export class WebhookOrcamentoDto {
+  @ApiProperty({
+    description: 'true para aprovar, false para recusar o orçamento',
+    example: true,
+  })
+  aprovado!: boolean;
+}
 
 export class CriarOrdemServicoDto {
   @ApiPropertyOptional({

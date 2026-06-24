@@ -38,13 +38,12 @@ export class ServicoController {
   @ApiBody({ type: CriarServicoDto })
   @ApiOkResponse({ description: 'Servico criado com sucesso' })
   @Post()
-  criar(@Body() body: CriarServicoDto) {
+  async criar(@Body() body: CriarServicoDto) {
     try {
-      const s = this.criarServico.execute({
+      return await this.criarServico.execute({
         nome: body.nome,
         preco: body.preco,
       });
-      return s;
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }
@@ -55,8 +54,8 @@ export class ServicoController {
   @ApiOkResponse({ description: 'Servico encontrado' })
   @ApiNotFoundResponse({ description: 'Serviço não encontrado' })
   @Get(':id')
-  buscar(@Param('id') id: string) {
-    const s = servicoRepo.getById(id);
+  async buscar(@Param('id') id: string) {
+    const s = await servicoRepo.getById(id);
     if (!s) throw new NotFoundException('Serviço não encontrado');
     return this.buscarServico.execute(s);
   }
@@ -64,7 +63,7 @@ export class ServicoController {
   @ApiOperation({ summary: 'Listar servicos' })
   @ApiOkResponse({ description: 'Lista de servicos retornada com sucesso' })
   @Get()
-  listar() {
+  async listar() {
     return this.listarServico.execute();
   }
 }
