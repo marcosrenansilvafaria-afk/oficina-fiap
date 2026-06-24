@@ -4,19 +4,21 @@ import { IVeiculoRepository } from '../domain/repositories/veiculo-repository.in
 export class InMemoryVeiculoRepository implements IVeiculoRepository {
   private store = new Map<string, Veiculo>();
 
-  async save(veiculo: Veiculo): Promise<void> {
+  save(veiculo: Veiculo): Promise<void> {
     this.store.set(veiculo.id, veiculo);
+    return Promise.resolve();
   }
 
-  async getById(id: string): Promise<Veiculo | null> {
-    return this.store.get(id) ?? null;
+  getById(id: string): Promise<Veiculo | null> {
+    return Promise.resolve(this.store.get(id) ?? null);
   }
 
-  async all(): Promise<Veiculo[]> {
-    return Array.from(this.store.values());
+  all(): Promise<Veiculo[]> {
+    return Promise.resolve(Array.from(this.store.values()));
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
     this.store.clear();
+    return Promise.resolve();
   }
 }

@@ -236,10 +236,9 @@ describe('OrdemServicoController', () => {
     await controller.adicionar(created.id, itemServicoPadrao());
     await controller.gerar(created.id);
 
-    const resultado = await controller.webhookOrcamento(
-      created.id,
-      { aprovado: true } as WebhookOrcamentoDto,
-    );
+    const resultado = await controller.webhookOrcamento(created.id, {
+      aprovado: true,
+    } as WebhookOrcamentoDto);
     expect(resultado.getStatus()).toBe('APROVADA');
   });
 
@@ -251,10 +250,9 @@ describe('OrdemServicoController', () => {
     await controller.adicionar(created.id, itemServicoPadrao());
     await controller.gerar(created.id);
 
-    const resultado = await controller.webhookOrcamento(
-      created.id,
-      { aprovado: false } as WebhookOrcamentoDto,
-    );
+    const resultado = await controller.webhookOrcamento(created.id, {
+      aprovado: false,
+    } as WebhookOrcamentoDto);
     expect(resultado.getStatus()).toBe('EM_DIAGNOSTICO');
   });
 });

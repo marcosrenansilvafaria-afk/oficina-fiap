@@ -20,16 +20,39 @@ describe('Fluxo de status da OS (use-cases)', () => {
     const finalizar = new FinalizarOrdemServico(repo);
     const entregar = new EntregarVeiculo(repo);
 
-    return { repo, criar, iniciarDiag, addItem, gerar, aprovar, iniciarExec, finalizar, entregar };
+    return {
+      repo,
+      criar,
+      iniciarDiag,
+      addItem,
+      gerar,
+      aprovar,
+      iniciarExec,
+      finalizar,
+      entregar,
+    };
   }
 
   it('deve executar o fluxo completo de status ate ENTREGUE', async () => {
-    const { criar, iniciarDiag, addItem, gerar, aprovar, iniciarExec, finalizar, entregar } =
-      prepararFluxo();
+    const {
+      criar,
+      iniciarDiag,
+      addItem,
+      gerar,
+      aprovar,
+      iniciarExec,
+      finalizar,
+      entregar,
+    } = prepararFluxo();
 
     const os = await criar.execute();
     await iniciarDiag.execute(os.id);
-    await addItem.execute(os.id, { tipo: 'SERVICO', descricao: 'Servico', preco: 90, quantidade: 1 });
+    await addItem.execute(os.id, {
+      tipo: 'SERVICO',
+      descricao: 'Servico',
+      preco: 90,
+      quantidade: 1,
+    });
     await gerar.execute(os.id);
     await aprovar.execute(os.id);
     await iniciarExec.execute(os.id);

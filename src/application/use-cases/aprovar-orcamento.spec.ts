@@ -16,7 +16,12 @@ describe('AprovarOrcamento', () => {
 
     const os = await criar.execute();
     await iniciarDiag.execute(os.id);
-    await addItem.execute(os.id, { tipo: 'SERVICO', descricao: 'Troca', preco: 100, quantidade: 1 });
+    await addItem.execute(os.id, {
+      tipo: 'SERVICO',
+      descricao: 'Troca',
+      preco: 100,
+      quantidade: 1,
+    });
     await gerar.execute(os.id);
 
     const atualizada = await aprovar.execute(os.id);

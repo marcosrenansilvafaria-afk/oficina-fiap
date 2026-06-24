@@ -40,7 +40,10 @@ export class ServicoController {
   @Post()
   async criar(@Body() body: CriarServicoDto) {
     try {
-      return await this.criarServico.execute({ nome: body.nome, preco: body.preco });
+      return await this.criarServico.execute({
+        nome: body.nome,
+        preco: body.preco,
+      });
     } catch (err: unknown) {
       throw new BadRequestException(getErrorMessage(err));
     }

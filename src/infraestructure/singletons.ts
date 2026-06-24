@@ -30,7 +30,8 @@ export let servicoRepo: IServicoRepository = new InMemoryServicoRepository();
 export let pecaRepo: IPecaRepository = new InMemoryPecaRepository();
 
 // Notificador de mudança de status (simulação de e-mail).
-export const notificadorStatus: NotificadorStatus = new ConsoleEmailNotificador();
+export const notificadorStatus: NotificadorStatus =
+  new ConsoleEmailNotificador();
 
 /**
  * Substitui os repositórios in-memory pelas implementações Prisma.
@@ -47,7 +48,9 @@ export function useDatabaseRepositories(prisma: PrismaService) {
 
 export async function seedRepositories() {
   if (!(await clienteRepo.getById('cli-001'))) {
-    await clienteRepo.save(new Cliente('cli-001', 'Cliente Demo', '12345678901'));
+    await clienteRepo.save(
+      new Cliente('cli-001', 'Cliente Demo', '12345678901'),
+    );
   }
 
   if (!(await veiculoRepo.getById('vei-001'))) {

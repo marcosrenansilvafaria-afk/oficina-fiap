@@ -4,23 +4,25 @@ import { IOrdemRepository } from '../domain/repositories/ordem-repository.interf
 export class InMemoryOrdemRepository implements IOrdemRepository {
   private store = new Map<string, OrdemServico>();
 
-  async save(ordem: OrdemServico): Promise<void> {
+  save(ordem: OrdemServico): Promise<void> {
     this.store.set(ordem.id, ordem);
+    return Promise.resolve();
   }
 
-  async getById(id: string): Promise<OrdemServico | null> {
-    return this.store.get(id) ?? null;
+  getById(id: string): Promise<OrdemServico | null> {
+    return Promise.resolve(this.store.get(id) ?? null);
   }
 
-  async exists(id: string): Promise<boolean> {
-    return this.store.has(id);
+  exists(id: string): Promise<boolean> {
+    return Promise.resolve(this.store.has(id));
   }
 
-  async all(): Promise<OrdemServico[]> {
-    return Array.from(this.store.values());
+  all(): Promise<OrdemServico[]> {
+    return Promise.resolve(Array.from(this.store.values()));
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
     this.store.clear();
+    return Promise.resolve();
   }
 }

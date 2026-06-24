@@ -1,4 +1,7 @@
-import { OrdemServico, StatusOrdemServico } from '../../domain/entities/ordem-servico';
+import {
+  OrdemServico,
+  StatusOrdemServico,
+} from '../../domain/entities/ordem-servico';
 
 /**
  * Porta (Clean Architecture) para notificar mudanças de status da OS.

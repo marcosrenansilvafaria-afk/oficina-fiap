@@ -29,12 +29,20 @@ export class PrismaVeiculoRepository implements IVeiculoRepository {
   async getById(id: string): Promise<Veiculo | null> {
     const record = await this.prisma.veiculo.findUnique({ where: { id } });
     if (!record) return null;
-    return new Veiculo(record.id, record.placa, record.modelo, record.marca, record.ano);
+    return new Veiculo(
+      record.id,
+      record.placa,
+      record.modelo,
+      record.marca,
+      record.ano,
+    );
   }
 
   async all(): Promise<Veiculo[]> {
     const records = await this.prisma.veiculo.findMany();
-    return records.map((r) => new Veiculo(r.id, r.placa, r.modelo, r.marca, r.ano));
+    return records.map(
+      (r) => new Veiculo(r.id, r.placa, r.modelo, r.marca, r.ano),
+    );
   }
 
   async clear(): Promise<void> {

@@ -4,19 +4,21 @@ import { IPecaRepository } from '../domain/repositories/peca-repository.interfac
 export class InMemoryPecaRepository implements IPecaRepository {
   private store = new Map<string, Peca>();
 
-  async save(peca: Peca): Promise<void> {
+  save(peca: Peca): Promise<void> {
     this.store.set(peca.id, peca);
+    return Promise.resolve();
   }
 
-  async getById(id: string): Promise<Peca | null> {
-    return this.store.get(id) ?? null;
+  getById(id: string): Promise<Peca | null> {
+    return Promise.resolve(this.store.get(id) ?? null);
   }
 
-  async all(): Promise<Peca[]> {
-    return Array.from(this.store.values());
+  all(): Promise<Peca[]> {
+    return Promise.resolve(Array.from(this.store.values()));
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
     this.store.clear();
+    return Promise.resolve();
   }
 }

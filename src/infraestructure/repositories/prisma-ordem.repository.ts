@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { OrdemServico, StatusOrdemServico } from '../../domain/entities/ordem-servico';
+import {
+  OrdemServico,
+  StatusOrdemServico,
+} from '../../domain/entities/ordem-servico';
 import { ItemOrdemServico } from '../../domain/entities/item-ordem-servico';
 import { IOrdemRepository } from '../../domain/repositories/ordem-repository.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -71,9 +74,23 @@ export class PrismaOrdemRepository implements IOrdemRepository {
     await this.prisma.ordemServico.deleteMany();
   }
 
-  private toEntity(record: any): OrdemServico {
-    const itens = (record.itens ?? []).map(
-      (i: any) =>
+  private toEntity(record: {
+    id: string;
+    clienteId: string;
+    veiculoId: string;
+    status: string;
+    valorTotal: number;
+    criadaEm: Date;
+    finalizadaEm: Date | null;
+    itens: {
+      tipo: string;
+      descricao: string;
+      preco: number;
+      quantidade: number;
+    }[];
+  }): OrdemServico {
+    const itens = record.itens.map(
+      (i) =>
         new ItemOrdemServico(
           i.tipo as 'SERVICO' | 'PECA',
           i.descricao,

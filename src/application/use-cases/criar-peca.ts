@@ -9,7 +9,12 @@ export class CriarPeca {
 
   async execute(input: Input) {
     if (!input || !input.nome) throw new Error('nome é obrigatório');
-    const peca = new Peca(generateId(), input.nome, input.preco || 0, input.estoque || 0);
+    const peca = new Peca(
+      generateId(),
+      input.nome,
+      input.preco || 0,
+      input.estoque || 0,
+    );
     await this.repo.save(peca);
     return peca;
   }

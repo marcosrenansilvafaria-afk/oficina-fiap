@@ -4,19 +4,21 @@ import { IServicoRepository } from '../domain/repositories/servico-repository.in
 export class InMemoryServicoRepository implements IServicoRepository {
   private store = new Map<string, Servico>();
 
-  async save(servico: Servico): Promise<void> {
+  save(servico: Servico): Promise<void> {
     this.store.set(servico.id, servico);
+    return Promise.resolve();
   }
 
-  async getById(id: string): Promise<Servico | null> {
-    return this.store.get(id) ?? null;
+  getById(id: string): Promise<Servico | null> {
+    return Promise.resolve(this.store.get(id) ?? null);
   }
 
-  async all(): Promise<Servico[]> {
-    return Array.from(this.store.values());
+  all(): Promise<Servico[]> {
+    return Promise.resolve(Array.from(this.store.values()));
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
     this.store.clear();
+    return Promise.resolve();
   }
 }

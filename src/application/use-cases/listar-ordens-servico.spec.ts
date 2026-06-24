@@ -1,9 +1,24 @@
-import { OrdemServico, StatusOrdemServico } from '../../domain/entities/ordem-servico';
+import {
+  OrdemServico,
+  StatusOrdemServico,
+} from '../../domain/entities/ordem-servico';
 import { InMemoryOrdemRepository } from '../../infraestructure/in-memory-ordem-repository';
 import { ListarOrdensServico } from './listar-ordens-servico';
 
-function criarOS(id: string, status: StatusOrdemServico, criadaEmMs: number): OrdemServico {
-  const os = OrdemServico.reconstitute(id, 'cli', 'vei', status, [], 0, new Date(criadaEmMs));
+function criarOS(
+  id: string,
+  status: StatusOrdemServico,
+  criadaEmMs: number,
+): OrdemServico {
+  const os = OrdemServico.reconstitute(
+    id,
+    'cli',
+    'vei',
+    status,
+    [],
+    0,
+    new Date(criadaEmMs),
+  );
   return os;
 }
 

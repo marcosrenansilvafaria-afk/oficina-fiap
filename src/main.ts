@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import type { Server } from 'node:http';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -42,8 +43,8 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  const server = await app.listen(process.env.PORT ?? 3000);
-  server.on('close', () => prisma.$disconnect());
+  const server = (await app.listen(process.env.PORT ?? 3000)) as Server;
+  server.on('close', () => void prisma.$disconnect());
 }
 bootstrap().catch((error: unknown) => {
   const message =

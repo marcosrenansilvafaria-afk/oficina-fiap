@@ -13,7 +13,6 @@ export class ConsoleEmailNotificador implements NotificadorStatus {
     const novoStatus = ordem.getStatus();
     if (statusAnterior === novoStatus) return;
 
-    // eslint-disable-next-line no-console
     console.log(
       `[EMAIL SIMULADO] OS ${ordem.id} | cliente ${ordem.clienteId ?? 'N/A'} | ` +
         `status: ${statusAnterior} -> ${novoStatus} | enviado em ${new Date().toISOString()}`,

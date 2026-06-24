@@ -5,7 +5,17 @@ export class StatusOrdemServicoResponseDto {
   @ApiProperty({ example: '8f42d860-a4f4-4cb5-a2d7-2d8bc7fbf9f3' })
   id!: string;
 
-  @ApiProperty({ enum: ['RECEBIDA', 'EM_DIAGNOSTICO', 'AGUARDANDO_APROVACAO', 'APROVADA', 'EM_EXECUCAO', 'FINALIZADA', 'ENTREGUE'] })
+  @ApiProperty({
+    enum: [
+      'RECEBIDA',
+      'EM_DIAGNOSTICO',
+      'AGUARDANDO_APROVACAO',
+      'APROVADA',
+      'EM_EXECUCAO',
+      'FINALIZADA',
+      'ENTREGUE',
+    ],
+  })
   status!: StatusOrdemServico;
 
   @ApiProperty({ example: 'Em Execução' })
@@ -16,7 +26,10 @@ export class StatusOrdemServicoResponseDto {
 }
 
 export class WebhookOrcamentoDto {
-  @ApiProperty({ description: 'true para aprovar, false para recusar o orçamento', example: true })
+  @ApiProperty({
+    description: 'true para aprovar, false para recusar o orçamento',
+    example: true,
+  })
   aprovado!: boolean;
 }
 

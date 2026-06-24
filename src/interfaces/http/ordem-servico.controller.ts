@@ -59,10 +59,19 @@ export class OrdemServicoController {
   );
   private gerarOrcamento = new GerarOrcamento(ordemRepo, notificadorStatus);
   private aprovarOrcamento = new AprovarOrcamento(ordemRepo, notificadorStatus);
-  private recusarOrcamentoUC = new RecusarOrcamento(ordemRepo, notificadorStatus);
+  private recusarOrcamentoUC = new RecusarOrcamento(
+    ordemRepo,
+    notificadorStatus,
+  );
   private iniciarExecucao = new IniciarExecucao(ordemRepo, notificadorStatus);
-  private iniciarDiagnostico = new IniciarDiagnostico(ordemRepo, notificadorStatus);
-  private finalizarOrdem = new FinalizarOrdemServico(ordemRepo, notificadorStatus);
+  private iniciarDiagnostico = new IniciarDiagnostico(
+    ordemRepo,
+    notificadorStatus,
+  );
+  private finalizarOrdem = new FinalizarOrdemServico(
+    ordemRepo,
+    notificadorStatus,
+  );
   private entregarVeiculo = new EntregarVeiculo(ordemRepo, notificadorStatus);
   private listarOrdens = new ListarOrdensServico(ordemRepo);
 
@@ -203,7 +212,9 @@ export class OrdemServicoController {
     }
   }
 
-  @ApiOperation({ summary: 'Webhook de aprovacao ou recusa do orcamento pelo cliente' })
+  @ApiOperation({
+    summary: 'Webhook de aprovacao ou recusa do orcamento pelo cliente',
+  })
   @ApiParam({ name: 'id', description: 'Id da ordem de servico' })
   @ApiBody({ type: WebhookOrcamentoDto })
   @ApiOkResponse({ description: 'Orcamento processado com sucesso' })
@@ -291,7 +302,9 @@ export class OrdemServicoController {
   @Get('sla-atendimento')
   async slaAtendimento() {
     const todas = await this.repo.all();
-    const ordensConcluidas = todas.filter((os) => os.getStatus() === 'FINALIZADA');
+    const ordensConcluidas = todas.filter(
+      (os) => os.getStatus() === 'FINALIZADA',
+    );
 
     const totalOrdensConcluidas = ordensConcluidas.length;
     const totalSlaMs = ordensConcluidas.reduce((acc, os) => {
@@ -333,7 +346,9 @@ export class OrdemServicoController {
   @ApiOkResponse({ type: StatusOrdemServicoResponseDto })
   @ApiNotFoundResponse({ description: 'OS não encontrada' })
   @Get(':id/status')
-  async status(@Param('id') id: string): Promise<StatusOrdemServicoResponseDto> {
+  async status(
+    @Param('id') id: string,
+  ): Promise<StatusOrdemServicoResponseDto> {
     const os = await this.repo.getById(id);
     if (!os) throw new NotFoundException('OS não encontrada');
 
@@ -360,14 +375,21 @@ export class OrdemServicoController {
     };
   }
 
-  @ApiOperation({ summary: 'Listar ordens de servico (ordenadas por prioridade)' })
-  @ApiOkResponse({ description: 'Lista de OS retornada com sucesso (FINALIZADA/ENTREGUE ocultas)' })
+  @ApiOperation({
+    summary: 'Listar ordens de servico (ordenadas por prioridade)',
+  })
+  @ApiOkResponse({
+    description:
+      'Lista de OS retornada com sucesso (FINALIZADA/ENTREGUE ocultas)',
+  })
   @Get()
   async listar() {
     const ordens = await this.listarOrdens.execute();
     return ordens.map((os) => ({
       ...os,
-      envioOrcamento: this.envioOrcamento.get(os.id) || { status: 'NAO_ENVIADO' },
+      envioOrcamento: this.envioOrcamento.get(os.id) || {
+        status: 'NAO_ENVIADO',
+      },
       tempoExecucaoMs: this.execucaoConcluidaMs.get(os.id) ?? null,
     }));
   }

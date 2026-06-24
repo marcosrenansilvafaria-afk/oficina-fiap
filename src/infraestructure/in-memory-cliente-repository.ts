@@ -4,19 +4,21 @@ import { IClienteRepository } from '../domain/repositories/cliente-repository.in
 export class InMemoryClienteRepository implements IClienteRepository {
   private store = new Map<string, Cliente>();
 
-  async save(cliente: Cliente): Promise<void> {
+  save(cliente: Cliente): Promise<void> {
     this.store.set(cliente.id, cliente);
+    return Promise.resolve();
   }
 
-  async getById(id: string): Promise<Cliente | null> {
-    return this.store.get(id) ?? null;
+  getById(id: string): Promise<Cliente | null> {
+    return Promise.resolve(this.store.get(id) ?? null);
   }
 
-  async all(): Promise<Cliente[]> {
-    return Array.from(this.store.values());
+  all(): Promise<Cliente[]> {
+    return Promise.resolve(Array.from(this.store.values()));
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
     this.store.clear();
+    return Promise.resolve();
   }
 }

@@ -11,7 +11,11 @@ export class PrismaClienteRepository implements IClienteRepository {
     await this.prisma.cliente.upsert({
       where: { id: cliente.id },
       update: { nome: cliente.nome, documento: cliente.documento },
-      create: { id: cliente.id, nome: cliente.nome, documento: cliente.documento },
+      create: {
+        id: cliente.id,
+        nome: cliente.nome,
+        documento: cliente.documento,
+      },
     });
   }
 

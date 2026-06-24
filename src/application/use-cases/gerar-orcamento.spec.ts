@@ -14,13 +14,20 @@ describe('GerarOrcamento', () => {
 
     const os = await criar.execute();
     await iniciarDiag.execute(os.id);
-    await addItem.execute(os.id, { tipo: 'SERVICO', descricao: 'Troca', preco: 200, quantidade: 1 });
+    await addItem.execute(os.id, {
+      tipo: 'SERVICO',
+      descricao: 'Troca',
+      preco: 200,
+      quantidade: 1,
+    });
 
     const atualizada = await gerar.execute(os.id);
 
     expect(atualizada.getStatus()).toBe('AGUARDANDO_APROVACAO');
     expect(atualizada.getValorTotal()).toBe(200);
-    expect((await ordemRepo.getById(os.id))?.getStatus()).toBe('AGUARDANDO_APROVACAO');
+    expect((await ordemRepo.getById(os.id))?.getStatus()).toBe(
+      'AGUARDANDO_APROVACAO',
+    );
   });
 
   it('deve falhar quando OS nao existe', async () => {

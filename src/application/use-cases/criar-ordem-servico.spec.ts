@@ -45,7 +45,9 @@ describe('CriarOrdemServico', () => {
       'veiculoId inválido',
     );
 
-    await veiculoRepo.save(new Veiculo('v1', 'ABC1D23', 'Onix', 'Chevrolet', 2022));
+    await veiculoRepo.save(
+      new Veiculo('v1', 'ABC1D23', 'Onix', 'Chevrolet', 2022),
+    );
     const os = await useCase.execute({ veiculoId: 'v1' });
 
     expect(os.veiculoId).toBe('v1');

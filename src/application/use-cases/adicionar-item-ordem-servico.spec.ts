@@ -23,8 +23,16 @@ describe('AdicionarItemOrdemServico', () => {
     const servicoRepo = new InMemoryServicoRepository();
     await pecaRepo.save(new Peca('p1', 'Filtro de oleo', 45, 10));
 
-    const useCase = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
-    const atualizado = await useCase.execute(os.id, { tipo: 'PECA', pecaId: 'p1', quantidade: 2 });
+    const useCase = new AdicionarItemOrdemServico(
+      ordemRepo,
+      pecaRepo,
+      servicoRepo,
+    );
+    const atualizado = await useCase.execute(os.id, {
+      tipo: 'PECA',
+      pecaId: 'p1',
+      quantidade: 2,
+    });
 
     expect(atualizado.getItens()).toHaveLength(1);
     expect(atualizado.getItens()[0].descricao).toBe('Filtro de oleo');
@@ -37,8 +45,16 @@ describe('AdicionarItemOrdemServico', () => {
     const servicoRepo = new InMemoryServicoRepository();
     await servicoRepo.save(new Servico('s1', 'Troca de oleo', 120));
 
-    const useCase = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
-    const atualizado = await useCase.execute(os.id, { tipo: 'SERVICO', servicoId: 's1', quantidade: 1 });
+    const useCase = new AdicionarItemOrdemServico(
+      ordemRepo,
+      pecaRepo,
+      servicoRepo,
+    );
+    const atualizado = await useCase.execute(os.id, {
+      tipo: 'SERVICO',
+      servicoId: 's1',
+      quantidade: 1,
+    });
 
     expect(atualizado.getItens()).toHaveLength(1);
     expect(atualizado.getItens()[0].descricao).toBe('Troca de oleo');
@@ -49,10 +65,19 @@ describe('AdicionarItemOrdemServico', () => {
     const ordemRepo = new InMemoryOrdemRepository();
     const pecaRepo = new InMemoryPecaRepository();
     const servicoRepo = new InMemoryServicoRepository();
-    const useCase = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
+    const useCase = new AdicionarItemOrdemServico(
+      ordemRepo,
+      pecaRepo,
+      servicoRepo,
+    );
 
     await expect(
-      useCase.execute('nao-existe', { tipo: 'SERVICO', descricao: 'x', preco: 1, quantidade: 1 }),
+      useCase.execute('nao-existe', {
+        tipo: 'SERVICO',
+        descricao: 'x',
+        preco: 1,
+        quantidade: 1,
+      }),
     ).rejects.toThrow('OS não encontrada');
   });
 
@@ -60,10 +85,18 @@ describe('AdicionarItemOrdemServico', () => {
     const { ordemRepo, os } = await prepararOS();
     const pecaRepo = new InMemoryPecaRepository();
     const servicoRepo = new InMemoryServicoRepository();
-    const useCase = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
+    const useCase = new AdicionarItemOrdemServico(
+      ordemRepo,
+      pecaRepo,
+      servicoRepo,
+    );
 
     await expect(
-      useCase.execute(os.id, { tipo: 'PECA', pecaId: 'invalido', quantidade: 1 }),
+      useCase.execute(os.id, {
+        tipo: 'PECA',
+        pecaId: 'invalido',
+        quantidade: 1,
+      }),
     ).rejects.toThrow('Peça não encontrada');
   });
 
@@ -71,7 +104,11 @@ describe('AdicionarItemOrdemServico', () => {
     const { ordemRepo, os } = await prepararOS();
     const pecaRepo = new InMemoryPecaRepository();
     const servicoRepo = new InMemoryServicoRepository();
-    const useCase = new AdicionarItemOrdemServico(ordemRepo, pecaRepo, servicoRepo);
+    const useCase = new AdicionarItemOrdemServico(
+      ordemRepo,
+      pecaRepo,
+      servicoRepo,
+    );
 
     await expect(
       useCase.execute(os.id, { tipo: 'SERVICO', quantidade: 1 }),
