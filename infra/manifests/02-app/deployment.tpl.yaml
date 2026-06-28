@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: api
-          image: "oficina-api:${image_tag}"
-          imagePullPolicy: Never
+          image: "${image_registry}oficina-api:${image_tag}"
+          imagePullPolicy: ${image_pull_policy}
           ports:
             - containerPort: 3000
           envFrom:
