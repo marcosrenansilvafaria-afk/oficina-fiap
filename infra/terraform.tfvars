@@ -10,3 +10,10 @@ db_password = "mrsfrif"
 db_name     = "oficina_db"
 
 api_replicas = 2
+
+# Porta local: 3000 está em uso pelo Docker Desktop no Windows
+host_port = 3000
+
+# Registry local para Docker Desktop Kubernetes (imagens não ficam no namespace k8s.io do Kind)
+image_registry    = "host.docker.internal:5000/"
+image_pull_policy = "IfNotPresent"

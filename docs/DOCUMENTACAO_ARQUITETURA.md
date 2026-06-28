@@ -71,7 +71,7 @@ Fora do escopo (MVP / Fase 1):
 - Monitoramento avançado (tempo médio e KPIs complexos)
 - Controle avançado de estoque
 
-Escopo adicionado na Fase 2 — Sprint 1 (código):
+Escopo adicionado na Fase 2 — (código):
 
 - Persistência relacional (PostgreSQL via Prisma 7)
 - API de consulta de status da OS
@@ -79,13 +79,13 @@ Escopo adicionado na Fase 2 — Sprint 1 (código):
 - Listagem ordenada de OS com filtro de status encerrados
 - Notificação simulada de alteração de status (e-mail via console)
 
-Escopo adicionado na Fase 2 — Sprint 2 (infraestrutura):
+Escopo adicionado na Fase 2 — (infraestrutura):
 
 - `Dockerfile` multi-stage otimizado com `prisma generate` e entrypoint de migration automática
 - Infraestrutura como Código via Terraform (`/infra`): cluster Kind + PostgreSQL + metrics-server
 - Orquestração Kubernetes (`/k8s`): Deployment, Service, ConfigMap, Secret, Job de migration, HPA (min 2 / max 5 réplicas)
 
-Escopo adicionado na Fase 2 — Sprint 3 (automação):
+Escopo adicionado na Fase 2 (automação):
 
 - Pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd.yml`): build → lint → testes + quality gate → build/push imagem GHCR → deploy automatizado no cluster Kind com rastreabilidade por SHA
 
@@ -1239,15 +1239,45 @@ terraform apply
 terraform destroy  # derruba tudo (cluster + dados)
 ```
 
-## 8.5 Kubernetes — Orquestração (`/k8s`)
+## 8.5 Kubernetes — Orquestração via Terraform (`infra/manifests/`)
 
-Manifestos da aplicação aplicados sobre o cluster provisionado pelo Terraform.
+Os manifestos da aplicação são gerenciados pelo Terraform como recursos nativos do provider `gavinbunney/kubectl` (tipo `kubectl_manifest`). Não existe `kubectl apply` manual no pipeline — o Terraform é a única fonte de verdade sobre o estado do cluster.
 
-**Fluxo de comunicação:**
+**Estrutura dos manifestos:**
 
 ```
-Cliente/Browser
-   │  (HTTP NodePort 30080 → host:3000)
+infra/manifests/
+├── 00-namespaces/
+│     └── namespace.yaml
+├── 01-config/
+│     ├── configmap.yaml
+│     └── secret.tpl.yaml       ← templatefile: DATABASE_URL, JWT_SECRET, EXTERNAL_WEBHOOK_TOKEN
+└── 02-app/
+      ├── service-clusterip.yaml
+      ├── service-nodeport.yaml
+      ├── migrate-job.tpl.yaml  ← templatefile: image_tag, image_registry, image_pull_policy
+      ├── deployment.tpl.yaml   ← templatefile: image_tag, image_registry, image_pull_policy
+      └── hpa.yaml
+```
+
+**Cadeia de dependência (`depends_on` explícito no Terraform):**
+
+```
+namespace
+  └─► configmap
+  └─► api_secret    (templatefile — credenciais injetadas pelo Terraform)
+  └─► api_service_clusterip
+  └─► api_service_nodeport
+        └─► migrate_job    (templatefile — image_tag do commit)
+              └─► api_deployment
+                    └─► api_hpa
+```
+
+**Fluxo de comunicação no cluster:**
+
+```
+Cliente HTTP
+   │  (NodePort 30080 → host:3000)
    ▼
 Service NodePort ──► Service ClusterIP (oficina-api)
                           │  load-balance
@@ -1257,17 +1287,15 @@ Service NodePort ──► Service ClusterIP (oficina-api)
         │   envFrom: ConfigMap (PORT/SEED) + Secret (DATABASE_URL/JWT/tokens)
         └──────► Service ClusterIP "postgres" ──► Pod PostgreSQL ──► PVC
 HPA ◄── metrics-server (CPU/mem dos Pods) ──► ajusta réplicas (target CPU 60%)
-Job migrate ──► Postgres (prisma migrate deploy antes do rollout)
+Job prisma-migrate ──► Postgres (prisma migrate deploy — antes do rollout)
 ```
 
 **Segredos e não-segredos:**
 
-| Tipo | Conteúdo | Manifesto |
-|------|----------|-----------|
-| ConfigMap | PORT, NODE_ENV, SEED_DATA, DB_HOST/PORT/NAME | `configmap.yaml` (versionado) |
-| Secret | DATABASE_URL, JWT_SECRET, EXTERNAL_WEBHOOK_TOKEN | criado via `kubectl create secret` (não versionado) |
-
-O `secret.example.yaml` contém apenas placeholders em base64 e serve como documentação de quais chaves são esperadas.
+| Tipo | Conteúdo | Como é criado |
+|------|----------|---------------|
+| ConfigMap | PORT, NODE_ENV, SEED_DATA, DB_HOST/PORT/NAME | `kubectl_manifest` (versionado em `infra/manifests/01-config/`) |
+| Secret | DATABASE_URL, JWT_SECRET, EXTERNAL_WEBHOOK_TOKEN | `kubectl_manifest` via `templatefile()` — valores chegam pelos `TF_VAR_*` do CI ou do `terraform.tfvars` local |
 
 **HPA configurado:**
 
@@ -1279,23 +1307,16 @@ metrics:
   - memory: averageUtilization 70%
 ```
 
-**Deploy:**
+**Deploy local (Terraform puro):**
 
 ```bash
-# 1. Carregar imagem local no Kind
-docker build -t oficina-api:latest .
-kind load docker-image oficina-api:latest --name oficina
-
-# 2. Criar Secret real
-kubectl create secret generic oficina-api-secrets \
-  --namespace=oficina \
-  --from-literal=DATABASE_URL="postgresql://oficina:<senha>@postgres.oficina.svc.cluster.local:5432/oficina_db" \
-  --from-literal=JWT_SECRET="<chave-segura>"
-
-# 3. Aplicar todos os manifestos
-kubectl apply -k k8s/
-
-# 4. Verificar
+cd infra
+terraform apply -target=kind_cluster.oficina -auto-approve
+kind export kubeconfig --name oficina
+cd .. && docker build -t oficina-api:local . && kind load docker-image oficina-api:local --name oficina
+cd infra && terraform apply -var="image_tag=local" -auto-approve
+kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=300s
+kubectl rollout status deployment/oficina-api -n oficina
 kubectl get pods,hpa -n oficina
 ```
 
@@ -1367,21 +1388,24 @@ Cada job só inicia se o anterior passar inteiro. Uma falha de lint, teste ou bu
 
 **Por que em um runner único:** o cluster Kind (Kubernetes em Docker) é criado nos containers do runner. Jobs separados no GitHub Actions rodam em VMs distintas e independentes — o cluster criado no "Job 4" não existiria mais no "Job 5". Consolidar em etapas sequenciais dentro de um único job é o padrão correto para clusters efêmeros.
 
-**Etapa 4 — Infraestrutura (Terraform):**
-1. Instala Kind CLI e kustomize (não pré-instalados no runner)
-2. `terraform init && terraform apply -auto-approve` — provisiona cluster Kind + Postgres + metrics-server exatamente como no ambiente local
-3. `kind export kubeconfig` — aponta kubectl para o cluster recém-criado
+**Etapa 4 — Infraestrutura (Terraform fase 1):**
+1. Instala Kind CLI (não pré-instalado no runner)
+2. `terraform init && terraform apply -target=kind_cluster.oficina -auto-approve` — cria apenas o cluster Kind
+3. `kind export kubeconfig --name oficina` — aponta kubectl para o cluster recém-criado
 
-**Etapa 5 — Deploy da aplicação (K8s):**
-4. `docker pull ghcr.io/.../oficina-api:sha-<sha>` — baixa a imagem publicada pelo Job 3
-5. `kind load docker-image oficina-api:<sha>` — carrega no registry interno do Kind (necessário por `imagePullPolicy: Never`)
-6. `kustomize edit set image oficina-api=oficina-api:<sha>` — sobrescreve a tag no `kustomization.yaml` local, garantindo que o cluster rode exatamente o commit que disparou o pipeline
-7. `kubectl create secret generic oficina-api-secrets --dry-run=client | kubectl apply` — idempotente; lê credenciais dos GitHub Secrets
-8. `kubectl apply -k k8s/` — aplica todos os manifestos via Kustomize
-9. `kubectl wait --for=condition=complete job/prisma-migrate` — aguarda a migration terminar antes de declarar sucesso
-10. `kubectl rollout status deployment/oficina-api` — confirma que os Pods estão Running e Healthy
-11. `kubectl get hpa` — prova min 2 / max 5 réplicas configuradas
-12. `curl http://localhost:3000/docs` — smoke test via NodePort mapeado pelo Kind
+**Etapa 5 — Carga da imagem:**
+4. Login no GHCR com `GITHUB_TOKEN`
+5. `docker pull ghcr.io/.../oficina-api:sha-<sha>` — baixa a imagem publicada pelo Job 3
+6. `docker tag` + `kind load docker-image oficina-api:<sha>` — carrega no registry interno do Kind (necessário por `imagePullPolicy: Never`)
+
+**Etapa 6 — Deploy declarativo (Terraform fase 2):**
+7. `terraform apply -auto-approve` com `TF_VAR_image_tag=<sha>` — aplica **todos** os recursos K8s via `kubectl_manifest`:
+   namespace → configmap/secret → services → migrate_job → api_deployment → api_hpa
+   O `templatefile()` injeta a tag SHA no manifesto do Deployment; nenhum `kubectl apply` é executado
+8. `kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=300s` — aguarda migration
+9. `kubectl rollout status deployment/oficina-api -n oficina` — confirma Pods Running
+10. `kubectl get hpa -n oficina` — verifica autoescala configurada (min 2 / max 5)
+11. `curl http://localhost:3000/docs` — smoke test via NodePort mapeado pelo Kind
 
 ### Arquitetura IaC declarativa — `kubectl_manifest` (padrão adotado)
 
@@ -1392,11 +1416,11 @@ infra/manifests/
 ├── 00-namespaces/    → kubectl_manifest.namespace
 │     namespace.yaml
 ├── 01-config/        → kubectl_manifest.configmap
-│     configmap.yaml  → kubectl_manifest.api_secret (templatefile — valores sensíveis via variáveis)
+│     configmap.yaml  → kubectl_manifest.api_secret (templatefile — valores sensíveis via TF_VAR_*)
 │     secret.tpl.yaml
-└── 02-app/           → kubectl_manifest.api_service_*
-      service-clusterip.yaml  → kubectl_manifest.migrate_job (templatefile — image_tag)
-      service-nodeport.yaml   → kubectl_manifest.api_deployment (templatefile — image_tag)
+└── 02-app/           → kubectl_manifest.api_service_clusterip / api_service_nodeport
+      service-clusterip.yaml  → kubectl_manifest.migrate_job (templatefile — image_tag, image_registry)
+      service-nodeport.yaml   → kubectl_manifest.api_deployment (templatefile — image_tag, image_registry)
       migrate-job.tpl.yaml    → kubectl_manifest.api_hpa
       deployment.tpl.yaml
       hpa.yaml
@@ -1405,7 +1429,7 @@ infra/manifests/
 Cadeia de dependência garantida por `depends_on`:
 `namespace → (configmap, secret, services) → migrate_job → api_deployment → api_hpa`
 
-Nenhuma chamada a `kubectl` CLI dentro do HCL. Nenhum `null_resource` com `local-exec`. O `templatefile()` injeta variáveis sensíveis (`jwt_secret`, `external_webhook_token`, `image_tag`) no momento do `terraform apply`, protegendo-as com `sensitive_fields`.
+Nenhuma chamada a `kubectl` CLI para criação de recursos dentro do HCL. Nenhum `null_resource` com `local-exec`. O `templatefile()` injeta variáveis sensíveis (`jwt_secret`, `external_webhook_token`, `image_tag`) no momento do `terraform apply`, protegendo-as com `sensitive_fields`. Os únicos comandos `kubectl` no pipeline são verificações de estado (`kubectl wait`, `kubectl rollout status`, `kubectl get hpa`) — não criam nem modificam recursos.
 
 ### Secrets obrigatórios (GitHub Settings → Secrets → Actions)
 
@@ -1552,14 +1576,15 @@ Configuração SonarQube no projeto: `sonar-project.properties`.
 
 # 12. Considerações Finais
 
-- **Evolução Fase 1 → Fase 2 Sprint 1:** migração de persistência in-memory para PostgreSQL via Prisma 7 sem alterar estrutura de domínio ou estratégia de singletons; novas APIs (status, webhook, listagem ordenada) e notificação simulada de e-mail entregues.
-- **Evolução Fase 2 Sprint 2:** `Dockerfile` multi-stage corrigido e otimizado; entrypoint com migration automática; infraestrutura como código via Terraform (`/infra` — cluster Kind + Postgres + metrics-server); orquestração Kubernetes (`/k8s` — Deployment, Service, ConfigMap, Secret, HPA min 2/max 5).
-- **Evolução Fase 2 Sprint 3:** Pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd.yml`): 4 jobs encadeados `build-lint → test → docker-build → deploy`; imagem publicada no GHCR com rastreabilidade por SHA (`sha-<7chars>`); deploy automatizado end-to-end no cluster Kind com `terraform apply` + Kustomize + smoke test.
-- **Limitações conhecidas:** autenticação sem refresh token, análise de segurança com fallback conceitual quando Sonar não estiver disponível, monitoramento simplificado por timestamps no fluxo da OS, ausência de transações Prisma nos fluxos multi-step.
-- **Próximos passos:**
-  1. Swagger/Postman collection completa + vídeo de demo (15 min: pipeline em execução, deploy K8s, HPA escalando) — Sprint 4.
-  2. Transações Prisma para garantir atomicidade nos fluxos de escrita da OS.
-  3. Evoluir observabilidade quando houver requisito de produção com SLA.
+- **Evolução Fase 1 → Fase 2:** migração de persistência in-memory para PostgreSQL via Prisma 7 sem alterar estrutura de domínio ou estratégia de singletons; novas APIs (status, webhook, listagem ordenada) e notificação simulada de e-mail entregues.
+-  `Dockerfile` multi-stage corrigido e otimizado; entrypoint com migration automática; infraestrutura como código via Terraform (`/infra` — cluster Kind + Postgres + metrics-server); orquestração Kubernetes (`/k8s` — Deployment, Service, ConfigMap, Secret, HPA min 2/max 5).
+- Pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd.yml`): 4 jobs encadeados `build-lint → test → docker-build → deploy`; imagem publicada no GHCR com rastreabilidade por SHA (`sha-<7chars>`); deploy automatizado end-to-end no cluster Kind com `terraform apply` (IaC declarativa pura via `kubectl_manifest`) + smoke test.
+
+- **Limitações conhecidas:** autenticação sem refresh token; análise de segurança com fallback conceitual quando Sonar não disponível; monitoramento simplificado por timestamps no fluxo da OS; ausência de transações Prisma nos fluxos multi-step.
+- **Próximos passos (pós-entrega):**
+  1. Transações Prisma para garantir atomicidade nos fluxos de escrita da OS.
+  2. Evoluir observabilidade quando houver requisito de produção com SLA.
+  3. Migrar singletons para DI pleno do Nest quando o projeto crescer para múltiplos módulos.
 
 ## 12.1 Lições Arquiteturais — Referência para Projetos Futuros
 
