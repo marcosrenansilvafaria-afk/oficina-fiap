@@ -55,4 +55,14 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-/generated/prisma
+/src/generated/prisma
+
+# Terraform
+infra/terraform.tfvars
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/.terraform/
+infra/oficina-config
+
+# TypeScript incremental build
+*.tsbuildinfo

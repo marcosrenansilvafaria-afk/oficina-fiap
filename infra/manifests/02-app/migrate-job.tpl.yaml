@@ -11,8 +11,8 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migrate
-          image: "oficina-api:${image_tag}"
-          imagePullPolicy: Never
+          image: "${image_registry}oficina-api:${image_tag}"
+          imagePullPolicy: ${image_pull_policy}
           command: ["/bin/sh", "-c"]
           args:
             - |

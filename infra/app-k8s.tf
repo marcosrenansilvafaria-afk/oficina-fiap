@@ -43,7 +43,9 @@ resource "kubectl_manifest" "api_service_nodeport" {
 # A conclusão real do Job é verificada no CI via "kubectl wait --for=condition=complete".
 resource "kubectl_manifest" "migrate_job" {
   yaml_body = templatefile("${path.module}/manifests/02-app/migrate-job.tpl.yaml", {
-    image_tag = var.image_tag
+    image_tag         = var.image_tag
+    image_registry    = var.image_registry
+    image_pull_policy = var.image_pull_policy
   })
   wait_for_rollout = false
   depends_on = [
@@ -58,7 +60,9 @@ resource "kubectl_manifest" "migrate_job" {
 # Isso evita o timeout de 10 min do provider enquanto a API aguarda a migration.
 resource "kubectl_manifest" "api_deployment" {
   yaml_body = templatefile("${path.module}/manifests/02-app/deployment.tpl.yaml", {
-    image_tag = var.image_tag
+    image_tag         = var.image_tag
+    image_registry    = var.image_registry
+    image_pull_policy = var.image_pull_policy
   })
   wait_for_rollout = false
   depends_on       = [kubectl_manifest.migrate_job]

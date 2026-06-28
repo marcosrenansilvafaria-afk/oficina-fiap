@@ -18,7 +18,7 @@ resource "kind_cluster" "oficina" {
 
       extra_port_mappings {
         container_port = 30080
-        host_port      = 3000
+        host_port      = var.host_port
         protocol       = "TCP"
       }
     }

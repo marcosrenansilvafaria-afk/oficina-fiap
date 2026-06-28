@@ -60,3 +60,21 @@ variable "image_tag" {
   type        = string
   default     = "latest"
 }
+
+variable "host_port" {
+  description = "Porta do host mapeada para o NodePort 30080 do Kind (mude para 3001 se 3000 estiver em uso)"
+  type        = number
+  default     = 3000
+}
+
+variable "image_registry" {
+  description = "Prefixo do registry para a imagem (ex: 'host.docker.internal:5000/' para Docker Desktop local). Vazio para Kind/CI."
+  type        = string
+  default     = ""
+}
+
+variable "image_pull_policy" {
+  description = "imagePullPolicy dos pods da API. 'Never' para Kind (kind load). 'IfNotPresent' para registry local (Docker Desktop)."
+  type        = string
+  default     = "Never"
+}
