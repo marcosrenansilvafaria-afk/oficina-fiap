@@ -263,14 +263,13 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 - Contexto Fase 1: [docs/contexto-fase-1.md](docs/contexto-fase-1.md)
 - Débitos técnicos: [docs/debitos_tecnicos.md](docs/debitos_tecnicos.md)
 - Relatório Sonar: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
-- Vídeo Fase 1 (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](./video/apresentacao-fase-1.txt)
+- Vídeo Fase 1 (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](docs/video/apresentacao-fase-1.txt)
 
 ### Fase 2 
 #### (código + banco)
 
 - Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](docs/DOCUMENTACAO_ARQUITETURA.md)
 - Schema Prisma: [prisma/schema.prisma](prisma/schema.prisma)
-- Referência de requisitos Fase 2: [docs/ref/fase2.md](docs/ref/fase2.md)
 - Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
 
 #### (IaC + Kubernetes)
@@ -284,3 +283,4 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 
 - Pipeline GitHub Actions: [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
 - Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
+- Vídeo Fase 2 : [docs/video/apresentacao-fase-2.txt](docs/video/apresentacao-fase-2.txt)

@@ -1,4 +1,4 @@
-# ADR-010 - Observabilidade minima e padronizacao de erros
+# ADR-011 - Transicao para PostgreSQL com Prisma ORM
 
 Data: 03/06/2026
 Status: Aceita
