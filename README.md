@@ -142,49 +142,48 @@ docker-compose exec api npx prisma migrate deploy
 
 - Docker, [Kind](https://kind.sigs.k8s.io), [kubectl](https://kubernetes.io/docs/tasks/tools/), [Terraform](https://developer.hashicorp.com/terraform/install) ≥ 1.6, [Helm](https://helm.sh) ≥ 3.14.
 
-### 1. Provisionar infraestrutura (Terraform)
+### Deploy local via Terraform (passo a passo)
+
+O Terraform gerencia **todos** os recursos: cluster Kind, PostgreSQL, namespace, ConfigMap, Secret, Job de migration, Deployment, Services e HPA. Não é necessário usar `kubectl apply` manualmente.
 
 ```bash
+# 1. Entrar na pasta de infraestrutura e inicializar
 cd infra
-cp terraform.tfvars.example terraform.tfvars  # ajustar db_password
+cp terraform.tfvars.example terraform.tfvars   # ajustar db_password e jwt_secret
 terraform init
-terraform apply
-```
 
-Cria: cluster Kind (1 control-plane + 2 workers), namespace `oficina`, Postgres no cluster, metrics-server (necessário para o HPA).
+# 2. Criar apenas o cluster Kind (necessário antes de carregar a imagem)
+terraform apply -target=kind_cluster.oficina -auto-approve
 
-### 2. Carregar imagem e criar Secret
+# 3. Exportar kubeconfig
+kind export kubeconfig --name oficina
 
-```bash
-# Voltar para a raiz do projeto
+# 4. Construir a imagem e carregá-la no Kind
 cd ..
+docker build -t oficina-api:local .
+kind load docker-image oficina-api:local --name oficina
 
-docker build -t oficina-api:latest .
-kind load docker-image oficina-api:latest --name oficina
-
-kubectl create secret generic oficina-api-secrets \
-  --namespace=oficina \
-  --from-literal=DATABASE_URL="postgresql://oficina:<senha>@postgres.oficina.svc.cluster.local:5432/oficina_db" \
-  --from-literal=JWT_SECRET="<sua-chave-jwt>"
+# 5. Aplicar toda a infraestrutura + app K8s (um único comando)
+cd infra
+terraform apply -var="image_tag=local" -auto-approve
 ```
 
-### 3. Aplicar manifestos
+### Verificar
 
 ```bash
-kubectl apply -k k8s/
+# Aguardar migration completar
+kubectl wait --for=condition=complete job/prisma-migrate -n oficina --timeout=300s
+
+# Confirmar rollout da API
+kubectl rollout status deployment/oficina-api -n oficina
+
+# Ver pods, HPA e recursos
+kubectl get pods,hpa -n oficina
 ```
 
-### 4. Verificar
+API acessível em `http://localhost:3000` — Swagger em `http://localhost:3000/docs`.
 
-```bash
-kubectl get pods -n oficina        # 2 Pods API Running + Job migrate Completed
-kubectl get hpa -n oficina         # min 2 / max 5 réplicas, alvo CPU 60%
-kubectl get secret,configmap -n oficina
-```
-
-API acessível em `http://localhost:3000` (NodePort mapeado pelo Kind).
-
-### 5. Destruir
+### Destruir
 
 ```bash
 cd infra && terraform destroy
@@ -256,6 +255,25 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 
 ## Entregáveis
 
+### Entregáveis Fase 2
+- Vídeo Fase 2 : [docs/video/apresentacao-fase-2.txt](../docs/video/apresentacao-fase-2.txt)
+
+#### (código + banco)
+- Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
+- Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](../docs/DOCUMENTACAO_ARQUITETURA.md)
+- Schema Prisma: [prisma/schema.prisma](../prisma/schema.prisma)
+
+#### (IaC + Kubernetes)
+- Terraform (cluster + banco + metrics-server + recursos K8s da app): [infra/](../infra/)
+- Manifestos K8s gerenciados via Terraform (Deployment, Service, ConfigMap, Secret, HPA, Job): [infra/manifests/](../infra/manifests/)
+- Dockerfile multi-stage: [Dockerfile](../Dockerfile)
+- Docker compose: [docker-compose.yml](../docker-compose.yml)
+- Entrypoint de migration automática: [docker-entrypoint.sh](../docker-entrypoint.sh)
+
+#### (CI/CD)
+- Pipeline GitHub Actions: [../github/workflows/ci-cd.yml](../.github/workflows/ci-cd.yml)
+- Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
+
 ### Fase 1
 
 - Drawio (online): https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing
@@ -264,24 +282,4 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 - Contexto Fase 1: [docs/contexto-fase-1.md](docs/contexto-fase-1.md)
 - Débitos técnicos: [docs/debitos_tecnicos.md](docs/debitos_tecnicos.md)
 - Relatório Sonar: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
-- Vídeo Fase 1 (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](./video/apresentacao-fase-1.txt)
-
-### Fase 2 — Sprint 1 (código + banco)
-
-- Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](docs/DOCUMENTACAO_ARQUITETURA.md)
-- Schema Prisma: [prisma/schema.prisma](prisma/schema.prisma)
-- Referência de requisitos Fase 2: [docs/ref/fase2.md](docs/ref/fase2.md)
-- Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
-
-### Fase 2 — Sprint 2 (IaC + Kubernetes)
-
-- Terraform (cluster + banco + metrics-server): [infra/](infra/)
-- Kubernetes (Deployment, Service, ConfigMap, Secret, HPA, Job): [k8s/](k8s/)
-- Dockerfile multi-stage: [Dockerfile](Dockerfile)
-- Entrypoint de migration automática: [docker-entrypoint.sh](docker-entrypoint.sh)
-
-### Fase 2 — Sprint 3 (CI/CD)
-
-- Pipeline GitHub Actions: [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
-- Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
-- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.mp4](docs/video/apresentacao-fase-1.txt)
+- Vídeo Fase 1 (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](docs/video/apresentacao-fase-1.txt)
