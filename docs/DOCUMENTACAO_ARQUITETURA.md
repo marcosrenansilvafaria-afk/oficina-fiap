@@ -13,18 +13,43 @@
 - [5. API](#5-api)
 - [6. Segurança](#6-segurança)
 - [7. Testes](#7-testes)
+- [8. Infraestrutura](#8-infraestrutura)
+- [9. Qualidade de Software](#9-qualidade-de-software)
+- [10. Análise de Vulnerabilidades](#10-análise-de-vulnerabilidades)
+- [11. Execução do Projeto](#11-execução-do-projeto)
+- [12. Considerações Finais](#12-considerações-finais)
 
-## Entregáveis
+## Entregáveis Fase 2
+- Vídeo Fase 2 : [docs/video/apresentacao-fase-2.txt](../docs/video/apresentacao-fase-2.txt)
+
+### (código + banco)
+- Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
+- Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](../docs/DOCUMENTACAO_ARQUITETURA.md)
+- Schema Prisma: [prisma/schema.prisma](../prisma/schema.prisma)
+
+### (IaC + Kubernetes)
+- Terraform (cluster + banco + metrics-server + recursos K8s da app): [infra/](../infra/)
+- Manifestos K8s gerenciados via Terraform (Deployment, Service, ConfigMap, Secret, HPA, Job): [infra/manifests/](../infra/manifests/)
+- Dockerfile multi-stage: [Dockerfile](../Dockerfile)
+- Docker compose: [docker-compose.yml](../docker-compose.yml)
+- Entrypoint de migration automática: [docker-entrypoint.sh](../docker-entrypoint.sh)
+
+### (CI/CD)
+- Pipeline GitHub Actions: [../github/workflows/ci-cd.yml](../.github/workflows/ci-cd.yml)
+- Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
+
+
+## Entregáveis Fase 1
 
 - Drawio (online): https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing
-- Drawio (local): [../oficina-mecanica-drawio.drawio](../oficina-mecanica-drawio.drawio)
+- Drawio (local): [oficina-mecanica-drawio.drawio](oficina-mecanica-drawio.drawio)
 - DAS: [DAS.md](DAS.md)
-- Contexto: [contexto.md](contexto.md)
+- Contexto: [ref/contexto-fase-1.md](ref/contexto-fase-1.md)
 - Débitos técnicos: [debitos_tecnicos.md](debitos_tecnicos.md)
 - Relatório Sonar: [relatorios/sonar-relatorio-final.md](relatorios/sonar-relatorio-final.md)
 - README: [../README.md](../README.md)
 - Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
-- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](./video/apresentacao-fase-1.txt)
+- Vídeo (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](docs/video/apresentacao-fase-1.txt)
 
 
 ---
@@ -544,19 +569,15 @@ prisma/
   migrations/           ← migrations geradas
 generated/
   prisma/client/        ← PrismaClient gerado (não versionar)
-infra/                  ← Terraform (Sprint 2)
-  versions.tf           ← providers: kind, kubernetes, helm
+infra/                  ← Terraform (Sprint 2+)
+  versions.tf           ← providers: kind, kubernetes, kubectl, helm
   main.tf               ← kind_cluster + kubernetes_namespace
   database.tf           ← Postgres no cluster (Secret, PVC, Deployment, Service)
   addons.tf             ← metrics-server via Helm (habilita HPA)
+  app-k8s.tf             ← recursos K8s da app via provider kubectl (namespace, configmap, secret, migrate job, deployment, HPA)
   variables.tf, outputs.tf, terraform.tfvars.example
-k8s/                    ← Manifestos Kubernetes (Sprint 2)
-  namespace.yaml, configmap.yaml, secret.example.yaml
-  migrate-job.yaml      ← Job prisma migrate deploy
-  deployment.yaml       ← API (replicas 2, probes TCP, resources)
-  service.yaml          ← ClusterIP + NodePort
-  hpa.yaml              ← min 2 / max 5 réplicas, CPU 60% / mem 70%
-  kustomization.yaml    ← kubectl apply -k k8s/
+  manifests/             ← YAML/templates aplicados pelo app-k8s.tf
+    00-namespaces/, 01-config/, 02-app/ (deployment, migrate-job, hpa, service)
 docker-entrypoint.sh    ← aguarda banco, aplica migrations, inicia API
 ```
 
@@ -1450,9 +1471,9 @@ git commit abc1234
 Job docker-build → ghcr.io/.../oficina-api:sha-abc1234
     │
     ▼ Job deploy
-kustomize edit set image → deployment usa oficina-api:abc1234
-kind load → Kind encontra a imagem localmente
-kubectl apply-k → Pods sobem com a imagem do commit abc1234
+kind load docker-image → Kind encontra a imagem localmente
+terraform apply → templatefile() injeta image_tag=abc1234 no manifesto do Deployment
+kubectl_manifest.api_deployment → Pods sobem com a imagem do commit abc1234
 ```
 
 Qualquer Pod running em qualquer momento pode ser rastreado até o commit exato que o gerou — sem ambiguidade de `:latest`.
@@ -1626,6 +1647,6 @@ Cada nome de rota e regra de negócio tem uma justificativa operacional. Documen
 
 ---
 
-Conforme descrito em `docs/contexto.md`, o sistema foi desenvolvido como MVP contemplando requisitos obrigatórios com níveis diferentes de profundidade, priorizando o domínio central e a entrega funcional ponta a ponta.
+Conforme descrito em `docs/ref/contexto-fase-1.md`, o sistema foi desenvolvido como MVP contemplando requisitos obrigatórios com níveis diferentes de profundidade, priorizando o domínio central e a entrega funcional ponta a ponta.
 
 ---

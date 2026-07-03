@@ -255,6 +255,25 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 
 ## Entregáveis
 
+### Entregáveis Fase 2
+- Vídeo Fase 2 : [docs/video/apresentacao-fase-2.txt](../docs/video/apresentacao-fase-2.txt)
+
+#### (código + banco)
+- Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
+- Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](../docs/DOCUMENTACAO_ARQUITETURA.md)
+- Schema Prisma: [prisma/schema.prisma](../prisma/schema.prisma)
+
+#### (IaC + Kubernetes)
+- Terraform (cluster + banco + metrics-server + recursos K8s da app): [infra/](../infra/)
+- Manifestos K8s gerenciados via Terraform (Deployment, Service, ConfigMap, Secret, HPA, Job): [infra/manifests/](../infra/manifests/)
+- Dockerfile multi-stage: [Dockerfile](../Dockerfile)
+- Docker compose: [docker-compose.yml](../docker-compose.yml)
+- Entrypoint de migration automática: [docker-entrypoint.sh](../docker-entrypoint.sh)
+
+#### (CI/CD)
+- Pipeline GitHub Actions: [../github/workflows/ci-cd.yml](../.github/workflows/ci-cd.yml)
+- Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
+
 ### Fase 1
 
 - Drawio (online): https://drive.google.com/file/d/1Gv8bTQnPdIEIPBtMnt4wfpOyKGaOIXs8/view?usp=sharing
@@ -264,23 +283,3 @@ docker run --rm -e SONAR_HOST_URL="http://host.docker.internal:9000" -e SONAR_TO
 - Débitos técnicos: [docs/debitos_tecnicos.md](docs/debitos_tecnicos.md)
 - Relatório Sonar: [docs/relatorios/sonar-relatorio-final.md](docs/relatorios/sonar-relatorio-final.md)
 - Vídeo Fase 1 (demonstração em 07:50:00): [docs/video/apresentacao-fase-1.txt](docs/video/apresentacao-fase-1.txt)
-
-### Fase 2 
-#### (código + banco)
-
-- Documentação de arquitetura (atualizada): [docs/DOCUMENTACAO_ARQUITETURA.md](docs/DOCUMENTACAO_ARQUITETURA.md)
-- Schema Prisma: [prisma/schema.prisma](prisma/schema.prisma)
-- Repositório: https://github.com/marcosrenansilvafaria-afk/oficina-fiap.git
-
-#### (IaC + Kubernetes)
-
-- Terraform (cluster + banco + metrics-server): [infra/](infra/)
-- Kubernetes (Deployment, Service, ConfigMap, Secret, HPA, Job): [k8s/](k8s/)
-- Dockerfile multi-stage: [Dockerfile](Dockerfile)
-- Entrypoint de migration automática: [docker-entrypoint.sh](docker-entrypoint.sh)
-
-#### (CI/CD)
-
-- Pipeline GitHub Actions: [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)
-- Imagens publicadas em: `ghcr.io/marcosrenansilvafaria-afk/oficina-fiap`
-- Vídeo Fase 2 : [docs/video/apresentacao-fase-2.txt](docs/video/apresentacao-fase-2.txt)
