@@ -68,7 +68,7 @@ describe('Workflow e2e', () => {
 
     const loginRes = await api()
       .post('/auth/login')
-      .send({ email: 'admin@oficina.com', senha: '123456' });
+      .send({ email: 'admin@oficina.com', senha: 'admin123' });
 
     accessToken = readString(bodyAsRecord(loginRes), 'access_token');
   });

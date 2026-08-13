@@ -10,7 +10,7 @@ describe('AuthController', () => {
       authService as unknown as AuthService,
     );
 
-    const input = { email: 'admin@oficina.com', senha: '123456' };
+    const input = { email: 'admin@oficina.com', senha: 'admin123' };
     const result = await controller.login(input);
 
     expect(authService.login).toHaveBeenCalledWith(input);

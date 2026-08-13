@@ -13,7 +13,7 @@ describe('AuthService', () => {
 
     const result = await service.login({
       email: 'admin@oficina.com',
-      senha: '123456',
+      senha: 'admin123',
     });
 
     expect(result).toEqual({ access_token: 'token-valido' });

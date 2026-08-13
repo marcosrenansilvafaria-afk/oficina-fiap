@@ -13,12 +13,9 @@ type MockUser = {
 @Injectable()
 export class AuthService {
   private readonly users: MockUser[] = [
-    {
-      id: 'user-admin-1',
-      email: 'admin@oficina.com',
-      senha: '123456',
-      role: Role.ADMIN,
-    },
+    { id: 'user-admin-1',     email: 'admin@oficina.com',     senha: 'admin123',     role: Role.ADMIN },
+    { id: 'user-atendente-1', email: 'atendente@oficina.com', senha: 'atendente123', role: Role.ATENDENTE },
+    { id: 'user-mecanico-1',  email: 'mecanico@oficina.com',  senha: 'mecanico123',  role: Role.MECANICO },
   ];
 
   constructor(private readonly jwtService: JwtService) {}
